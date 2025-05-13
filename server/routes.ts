@@ -13,8 +13,12 @@ import {
   insertOutputSchema,
   insertSaleSchema
 } from "@shared/schema";
+import dotenv from "dotenv";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Load environment variables
+  dotenv.config();
+  
   const httpServer = createServer(app);
   
   // WebSocket server for real-time updates
@@ -381,6 +385,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ error: 'Failed to get performance metrics' });
     }
+  });
+  
+  // ElevenLabs config endpoint
+  app.get('/api/elevenlabs/config', (req, res) => {
+    // ElevenLabs configuration data
+    res.json({
+      // We don't expose the actual key here, but let the client know it's configured
+      elevenLabsConfigured: process.env.ELEVENLABS_SIGNING_KEY ? true : false
+    });
   });
 
   return httpServer;
