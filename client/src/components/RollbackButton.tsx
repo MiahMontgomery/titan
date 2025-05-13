@@ -28,7 +28,7 @@ export function RollbackButton({ onClick }: RollbackButtonProps) {
         rollback-btn px-2 py-1 rounded flex items-center gap-1 transition-colors
         ${isConfirming 
           ? 'text-red-400 hover:text-red-300' 
-          : 'text-[#39FF14] hover:text-green-300'}
+          : 'text-[#01F9C6] hover:text-teal-300'}
       `}
       onClick={handleClick}
     >

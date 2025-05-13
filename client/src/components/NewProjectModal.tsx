@@ -102,7 +102,7 @@ export function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjectModalPr
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-[#39FF14] bg-opacity-20 text-[#39FF14] border border-[#39FF14] rounded-md hover:bg-opacity-30 transition-colors flex items-center"
+                  className="px-4 py-2 bg-[#01F9C6] bg-opacity-20 text-[#01F9C6] border border-[#01F9C6] rounded-md hover:bg-opacity-30 transition-colors flex items-center"
                   disabled={isCreatingProject}
                 >
                   {isCreatingProject ? "Creating..." : "Create Project"}
