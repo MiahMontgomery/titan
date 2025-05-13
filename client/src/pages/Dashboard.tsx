@@ -24,7 +24,7 @@ export default function Dashboard() {
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center">
             <TitanLogo size={32} className="mr-3" />
-            <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN Projects</h1>
+            <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN</h1>
           </div>
           <button 
             className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#01F9C6] border border-[#01F9C6] px-4 py-2 rounded-md transition duration-300 flex items-center"
