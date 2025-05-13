@@ -68,7 +68,7 @@ export function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjectModalPr
                 <input 
                   type="text" 
                   id="projectName" 
-                  className="w-full px-3 py-2 bg-[#0e0e0e] border border-[#333333] rounded-md focus:outline-none focus:border-[#39FF14] text-white"
+                  className="w-full px-3 py-2 bg-[#0e0e0e] border border-[#333333] rounded-md focus:outline-none focus:border-[#01F9C6] text-white"
                   placeholder="Enter project name"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
@@ -83,7 +83,7 @@ export function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjectModalPr
                 <textarea 
                   id="projectPrompt" 
                   rows={6} 
-                  className="w-full px-3 py-2 bg-[#0e0e0e] border border-[#333333] rounded-md focus:outline-none focus:border-[#39FF14] text-white resize-none"
+                  className="w-full px-3 py-2 bg-[#0e0e0e] border border-[#333333] rounded-md focus:outline-none focus:border-[#01F9C6] text-white resize-none"
                   placeholder="Describe your project in detail..."
                   value={projectPrompt}
                   onChange={(e) => setProjectPrompt(e.target.value)}

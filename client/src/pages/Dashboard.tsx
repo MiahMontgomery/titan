@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ProjectCard } from "@/components/ProjectCard";
 import { ExpandedProject } from "@/components/ExpandedProject";
 import { NewProjectModal } from "@/components/NewProjectModal";
+import { TitanLogo } from "@/components/TitanLogo";
 import { useProjectContext } from "@/contexts/ProjectContext";
 import { PlusIcon } from "lucide-react";
 
@@ -21,7 +22,10 @@ export default function Dashboard() {
       {/* Header */}
       <header className="p-6 border-b border-[#333333]">
         <div className="container mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN Projects</h1>
+          <div className="flex items-center">
+            <TitanLogo size={32} className="mr-3" />
+            <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN Projects</h1>
+          </div>
           <button 
             className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#01F9C6] border border-[#01F9C6] px-4 py-2 rounded-md transition duration-300 flex items-center"
             onClick={openNewProjectModal}
