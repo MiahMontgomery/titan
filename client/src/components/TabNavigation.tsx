@@ -34,14 +34,14 @@ function TabButton({ id, label, isActive, onClick }: TabButtonProps) {
     <button
       className={`
         relative px-4 py-3 focus:outline-none transition-colors duration-200
-        ${isActive ? 'text-[#39FF14]' : 'text-[#A9A9A9] hover:text-white'}
+        ${isActive ? 'text-[#01F9C6]' : 'text-[#A9A9A9] hover:text-white'}
       `}
       onClick={onClick}
     >
       {label}
       {isActive && (
         <motion.div
-          className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#39FF14]"
+          className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#01F9C6]"
           layoutId="activeTabIndicator"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

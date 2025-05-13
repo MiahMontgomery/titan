@@ -5,8 +5,8 @@ export const COLORS = {
     light: '#121212'
   },
   accent: {
-    primary: '#39FF14',
-    primaryTransparent: 'rgba(57, 255, 20, 0.2)'
+    primary: '#01F9C6',
+    primaryTransparent: 'rgba(1, 249, 198, 0.2)'
   },
   text: {
     primary: '#FFFFFF',

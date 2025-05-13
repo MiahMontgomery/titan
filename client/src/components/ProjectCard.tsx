@@ -12,7 +12,7 @@ export function ProjectCard({ project, isActive, onClick }: ProjectCardProps) {
     <motion.div
       className={`
         min-w-[280px] rounded-md p-4 bg-[#0e0e0e] border 
-        ${isActive ? 'border-[#39FF14] glow-pulse' : 'border-[#4A4A4A]'}
+        ${isActive ? 'border-[#01F9C6] glow-pulse' : 'border-[#4A4A4A]'}
         cursor-pointer transition-all duration-300
       `}
       whileHover={{ scale: 1.02 }}
@@ -27,7 +27,7 @@ export function ProjectCard({ project, isActive, onClick }: ProjectCardProps) {
         {project.prompt.length > 40 ? `${project.prompt.substring(0, 40)}...` : project.prompt}
       </p>
       <div className="flex items-center mt-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-[#39FF14] mr-2"></span>
+        <span className="inline-block w-2 h-2 rounded-full bg-[#01F9C6] mr-2"></span>
         <span className="text-xs text-[#A9A9A9]">Active</span>
       </div>
     </motion.div>

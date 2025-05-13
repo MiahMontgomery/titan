@@ -61,7 +61,7 @@ export function ExpandedProject({ project, onClose }: ExpandedProjectProps) {
 
   return (
     <motion.div
-      className="expanded-project border border-[#39FF14] rounded-md bg-[#0e0e0e] shadow-glow overflow-hidden"
+      className="expanded-project border border-[#01F9C6] rounded-md bg-[#0e0e0e] shadow-glow overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}

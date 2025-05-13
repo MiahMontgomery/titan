@@ -21,9 +21,9 @@ export default function Dashboard() {
       {/* Header */}
       <header className="p-6 border-b border-[#333333]">
         <div className="container mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[#39FF14]">Titan Projects</h1>
+          <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN Projects</h1>
           <button 
-            className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#39FF14] border border-[#39FF14] px-4 py-2 rounded-md transition duration-300 flex items-center"
+            className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#01F9C6] border border-[#01F9C6] px-4 py-2 rounded-md transition duration-300 flex items-center"
             onClick={openNewProjectModal}
           >
             <PlusIcon size={16} className="mr-1" /> Add New Project
