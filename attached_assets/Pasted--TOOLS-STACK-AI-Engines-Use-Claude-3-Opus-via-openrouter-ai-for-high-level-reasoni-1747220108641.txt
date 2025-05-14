@@ -1,0 +1,68 @@
+## TOOLS & STACK
+
+**AI Engines:**
+- Use **Claude 3 Opus** via `openrouter.ai` for high-level reasoning, goal formation, and project creation.
+- Use **GPT-4 Turbo** for code generation and logic refinement.
+- These models are accessed through the `OpenRouter` API.
+
+**Execution Layer:**
+- All agent commands run through **Jason**, the central autonomous agent.
+- Jason uses **Puppeteer** for headless browser control.
+- Jason speaks through **ElevenLabs**, using the API key in `Secrets`.
+- Jason executes commands in the loop every 60 seconds via `cron` or persistent loop.
+
+**Memory + State:**
+- Use **PostgreSQL** as the persistent structured database
+- Use **SQLite** for local session memory (optional for temp)
+- Files should be stored and accessed via **Seafile** or **Zoho WorkDrive**
+- Jason's decisions and memory states are stored in JSON objects with timestamps, metadata, and outcome scores
+
+**Communication:**
+- Backend must emit and receive real-time messages using **WebSockets**
+- All updates from Jason (actions, screenshots, task status) must appear in the Input tab and propagate to other tabs
+
+**Voice Communication:**
+- ElevenLabs voice calls are initiated through the frontend (already mounted)
+- Backend must listen for live triggers and voice-generated commands, treating them as text equivalent events and routing them to Jason’s loop
+
+---
+
+### FUNCTIONAL FLOW
+
+1. **Input Tab**
+    - Real-time chat input from the user
+    - Receives updates, screenshots, task status, agent questions, and memory summaries
+    - On task creation or update:
+      → Pushes JSON updates to the Progress tab
+    - On voice call:
+      → Logs transcript into chat with visual (screenshot) responses if applicable
+
+2. **Progress Tab**
+    - Stores a `features[]` array with nested `milestones[]` each containing `goals[]`
+    - The completion status of goals automatically updates progress of the milestone/feature
+    - Data is pulled from backend `project_state.json` or live database records
+    - If user adds a new feature via the Input tab, that feature is synced here via internal update hooks
+
+3. **Logs Tab**
+    - All actions taken by Jason (execution, rollback, error, retry, screenshot, login event, etc.)
+    - Each log entry includes:
+        - Timestamp
+        - Task ID
+        - Project ID
+        - Action description
+        - Output (screenshot path, text, result, or error)
+        - Optional rollback marker
+    - Stored in `/data/logs/` and exposed via WebSocket + REST
+
+4. **Output Tab**
+    - Jason places created files, drafts, or screenshots here for manual review
+    - Each output entry has:
+        - Filename or content block
+        - Project ID
+        - Awaiting approval = true/false
+        - If rejected, Jason will follow up in Input tab for clarification
+
+5. **Sales Tab**
+    - Daily financials and action summaries
+    - Each agent submits daily earnings and actions here (via auto-logging)
+    - Format: `messages_sent`, `products_sold`, `tasks_billed`, `leads_acquired`
