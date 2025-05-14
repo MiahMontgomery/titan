@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+node_modules
 
 # Environment variables
 .env
@@ -8,6 +9,7 @@ node_modules/
 
 # Build output
 dist/
+dist
 
 # Generated files
 data/memory.json
@@ -17,6 +19,7 @@ data/secrets/
 output/screenshots/
 output/audio/
 output/status.json
+server/public
 
 # IDE files
 .vscode/
@@ -30,4 +33,8 @@ yarn-error.log*
 
 # OS files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Build files
+vite.config.ts.*
+*.tar.gz
