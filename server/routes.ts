@@ -58,11 +58,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/create', async (req, res) => {
     console.log('Received project creation request with body:', req.body);
     try {
-const { name, prompt, userId } = req.body;
+      const { name, prompt, userId } = req.body;
       if (!name || !prompt || !userId) {
         console.error('Missing required fields:', { name, prompt, userId });
         return res.status(400).json({ error: 'Missing name, prompt, or userId' });
-      }
       }
 
       // 1. Generate features/milestones/goals using AI
