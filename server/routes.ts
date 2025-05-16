@@ -14,6 +14,9 @@ import {
   insertSaleSchema
 } from "@shared/schema";
 import dotenv from "dotenv";
+import { OpenRouter } from '../services/openrouter';
+
+const openRouter = new OpenRouter();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Load environment variables
@@ -55,24 +58,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/create', async (req, res) => {
     console.log('Received project creation request with body:', req.body);
     try {
-      const projectData = insertProjectSchema.parse(req.body);
-      console.log('Validated project data:', projectData);
-      
-      const project = await storage.createProject(projectData);
-      console.log('Project created successfully:', project);
-      
-      // Broadcast new project to all clients
-      broadcast({ type: 'project_created', project });
-      
-      res.status(201).json(project);
-    } catch (error) {
-      console.error('Project creation error:', error);
-      if (error instanceof z.ZodError) {
-        console.error('Validation error details:', error.errors);
-        res.status(400).json({ error: error.errors });
-      } else {
-        res.status(500).json({ error: 'Failed to create project' });
+const { name, prompt, userId } = req.body;
+      if (!name || !prompt || !userId) {
+        console.error('Missing required fields:', { name, prompt, userId });
+        return res.status(400).json({ error: 'Missing name, prompt, or userId' });
       }
+      }
+
+      // 1. Generate features/milestones/goals using AI
+      const aiResponse = await openRouter.chat({
+        model: 'claude-3-opus',
+        messages: [
+          { role: 'system', content: 'You are an expert project manager AI.' },
+          { role: 'user', content: `Break down this project into features, milestones, and goals: ${prompt}` }
+        ]
+      });
+      let plan;
+      try {
+        plan = JSON.parse(aiResponse.choices[0]?.message?.content || '{}');
+      } catch {
+        return res.status(500).json({ error: 'AI did not return valid JSON' });
+      }
+
+      // 2. Create the project
+      const projectData = insertProjectSchema.parse({ name, prompt, userId });
+      const project = await storage.createProject(projectData);
+
+      // 3. Create features, milestones, and goals
+      for (const feature of plan.features || []) {
+        const featureData = insertFeatureSchema.parse({
+          title: feature.title,
+          description: feature.description,
+          projectId: project.id,
+          order: feature.order || 0
+        });
+        const createdFeature = await storage.createFeature(featureData);
+
+        for (const milestone of feature.milestones || []) {
+          const milestoneData = insertMilestoneSchema.parse({
+            title: milestone.title,
+            featureId: createdFeature.id,
+            order: milestone.order || 0
+          });
+          const createdMilestone = await storage.createMilestone(milestoneData);
+
+          for (const goal of milestone.goals || []) {
+            const goalData = insertGoalSchema.parse({
+              title: goal.title,
+              milestoneId: createdMilestone.id,
+              order: goal.order || 0
+            });
+            await storage.createGoal(goalData);
+          }
+        }
+      }
+
+      // 4. Broadcast new project to all clients
+      broadcast({ type: 'project_created', project });
+
+      // 5. Return the new project (with features tree)
+      const features = await storage.getFeaturesByProject(project.id);
+      for (const feature of features) {
+        feature.milestones = await storage.getMilestonesByFeature(feature.id);
+        for (const milestone of feature.milestones) {
+          milestone.goals = await storage.getGoalsByMilestone(milestone.id);
+        }
+      }
+      res.status(201).json({ ...project, features });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   });
   
