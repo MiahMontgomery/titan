@@ -20,11 +20,23 @@ import type {
 
 // Project API calls
 export async function createProject(data: Omit<InsertProject, "userId">): Promise<Project> {
-  const response = await apiRequest("POST", "/api/projects/create", {
+  console.log("Creating project with data:", data);
+  const payload = {
     ...data,
     userId: 1 // Default user ID for now
-  });
-  return response.json();
+  };
+  console.log("Sending request to POST /api/projects/create with payload:", payload);
+  
+  try {
+    const response = await apiRequest("POST", "/api/projects/create", payload);
+    console.log("Project creation response status:", response.status);
+    const result = await response.json();
+    console.log("Project creation result:", result);
+    return result;
+  } catch (error) {
+    console.error("Project creation error:", error);
+    throw error;
+  }
 }
 
 export async function getProjects(): Promise<Project[]> {
