@@ -56,9 +56,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Project routes
   app.post('/api/projects/create', async (req, res) => {
+    console.log('Received project creation request with body:', req.body);
     try {
       const { name, prompt, userId } = req.body;
       if (!name || !prompt || !userId) {
+        console.error('Missing required fields:', { name, prompt, userId });
         return res.status(400).json({ error: 'Missing name, prompt, or userId' });
       }
 
