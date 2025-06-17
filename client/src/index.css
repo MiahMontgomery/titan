@@ -60,15 +60,17 @@
 
 @layer base {
   * {
-    @apply border-[1px];
-    border-color: theme('colors.border');
+    border-width: 1px;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
     background: linear-gradient(to bottom, #0d0d0d, #121212);
-    color: #FFFFFF;
+    color: hsl(var(--foreground));
     min-height: 100vh;
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .glow-border {
