@@ -12,14 +12,17 @@ import {
   insertLogSchema,
   insertOutputSchema,
   insertSaleSchema,
+  insertPersonaSchema,
   type Feature as DBFeature,
   type Milestone as DBMilestone,
-  type Goal as DBGoal
+  type Goal as DBGoal,
+  type Persona
 } from "@shared/schema";
 import dotenv from "dotenv";
 dotenv.config();
 import { OpenRouter } from '../services/openrouter';
 import { addTask } from '../data/queue';
+import { credentialsService } from './credentials';
 
 interface Goal {
   title: string;
@@ -567,6 +570,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newTask);
     } catch (error) {
       res.status(500).json({ error: 'Failed to add task' });
+    }
+  });
+
+  // Persona routes with enhanced credential management
+  app.post('/api/personas', async (req, res) => {
+    try {
+      const personaData = insertPersonaSchema.parse(req.body);
+      
+      // Encrypt credentials if provided
+      const encryptedData = {
+        ...personaData,
+        credentials: personaData.credentials ? credentialsService.encryptCredentials(personaData.credentials) : null
+      };
+      
+      const persona = await storage.createPersona(encryptedData);
+      res.status(201).json(persona);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: error.errors });
+      } else {
+        res.status(500).json({ error: 'Failed to create persona' });
+      }
+    }
+  });
+
+  app.get('/api/personas', async (_req, res) => {
+    try {
+      const personas = await storage.getPersonas();
+      // Decrypt credentials for each persona
+      const decryptedPersonas = personas.map((persona: Persona) => ({
+        ...persona,
+        credentials: persona.credentials ? 
+          (typeof persona.credentials === 'string' ? 
+            credentialsService.decryptCredentials(persona.credentials) : 
+            persona.credentials) : {}
+      }));
+      res.json(decryptedPersonas);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get personas' });
+    }
+  });
+
+  app.get('/api/personas/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      
+      // Decrypt credentials
+      const decryptedPersona = {
+        ...persona,
+        credentials: persona.credentials ? 
+          (typeof persona.credentials === 'string' ? 
+            credentialsService.decryptCredentials(persona.credentials) : 
+            persona.credentials) : {}
+      };
+      
+      res.json(decryptedPersona);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get persona' });
+    }
+  });
+
+  app.put('/api/personas/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const personaData = insertPersonaSchema.parse(req.body);
+      
+      // Get existing persona to ensure we have required fields
+      const existingPersona = await storage.getPersona(id);
+      if (!existingPersona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      
+      // Encrypt credentials if provided, otherwise keep existing
+      const encryptedData = {
+        ...personaData,
+        name: personaData.name || existingPersona.name, // Ensure name is always provided
+        credentials: personaData.credentials ? credentialsService.encryptCredentials(personaData.credentials) : existingPersona.credentials
+      };
+      
+      const persona = await storage.updatePersona(id, encryptedData);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      
+      // Decrypt credentials for response
+      const decryptedPersona = {
+        ...persona,
+        credentials: persona.credentials ? 
+          (typeof persona.credentials === 'string' ? 
+            credentialsService.decryptCredentials(persona.credentials) : 
+            persona.credentials) : {}
+      };
+      
+      res.json(decryptedPersona);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: error.errors });
+      } else {
+        res.status(500).json({ error: 'Failed to update persona' });
+      }
+    }
+  });
+
+  app.delete('/api/personas/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePersona(id);
+      res.json({ message: 'Persona deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete persona' });
+    }
+  });
+
+  // Test credentials for a specific platform
+  app.post('/api/personas/:id/test-credentials', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { platform, credentials } = req.body;
+      
+      if (!platform || !credentials) {
+        return res.status(400).json({ error: 'Missing platform or credentials' });
+      }
+      
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      
+      const result = await credentialsService.testCredentials(platform, credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to test credentials' });
+    }
+  });
+
+  // Test all credentials for a persona
+  app.post('/api/personas/:id/test-all-credentials', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      
+      if (!persona.credentials) {
+        return res.json({ message: 'No credentials to test' });
+      }
+      
+      const decryptedCredentials = typeof persona.credentials === 'string' ? 
+        credentialsService.decryptCredentials(persona.credentials) : 
+        persona.credentials;
+      
+      const results: Record<string, any> = {};
+      
+      // Test each platform's credentials
+      for (const [platform, credentials] of Object.entries(decryptedCredentials)) {
+        const result = await credentialsService.testCredentials(platform, credentials);
+        results[platform] = result;
+      }
+      
+      res.json({
+        personaId: id,
+        results,
+        summary: {
+          total: Object.keys(results).length,
+          successful: Object.values(results).filter((r: any) => r.success).length,
+          failed: Object.values(results).filter((r: any) => !r.success).length
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to test credentials' });
     }
   });
 

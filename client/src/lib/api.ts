@@ -15,7 +15,9 @@ import type {
   Output,
   InsertOutput,
   Sale,
-  InsertSale
+  InsertSale,
+  Persona,
+  InsertPersona
 } from "@shared/schema";
 
 // Project API calls
@@ -152,5 +154,49 @@ export async function createTask(data: {
   metadata?: Record<string, any>;
 }) {
   const response = await apiRequest("POST", "/api/tasks", data);
+  return response.json();
+}
+
+// Persona API calls
+export async function getPersonas(): Promise<Persona[]> {
+  const response = await apiRequest("GET", "/api/personas");
+  return response.json();
+}
+
+export async function getPersona(id: number): Promise<Persona> {
+  const response = await apiRequest("GET", `/api/personas/${id}`);
+  return response.json();
+}
+
+export async function createPersona(data: InsertPersona): Promise<Persona> {
+  const response = await apiRequest("POST", "/api/personas", data);
+  return response.json();
+}
+
+export async function updatePersona(id: number, data: InsertPersona): Promise<Persona> {
+  const response = await apiRequest("PUT", `/api/personas/${id}`, data);
+  return response.json();
+}
+
+export async function deletePersona(id: number): Promise<void> {
+  await apiRequest("DELETE", `/api/personas/${id}`);
+}
+
+// Test credentials for a specific platform
+export async function testCredentials(personaId: number, platform: string, credentials: Record<string, any>): Promise<{ success: boolean; message: string; details?: any }> {
+  const response = await apiRequest("POST", `/api/personas/${personaId}/test-credentials`, {
+    platform,
+    credentials
+  });
+  return response.json();
+}
+
+// Test all credentials for a persona
+export async function testAllCredentials(personaId: number): Promise<{
+  personaId: number;
+  results: Record<string, any>;
+  summary: { total: number; successful: number; failed: number };
+}> {
+  const response = await apiRequest("POST", `/api/personas/${personaId}/test-all-credentials`);
   return response.json();
 }
