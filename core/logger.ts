@@ -1,5 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface LogEntry {
   timestamp: string;
@@ -34,7 +39,9 @@ export async function logAction(
     projectId?: string;
     personaId?: string;
     taskId?: string;
-    result: any;
+    result?: any;
+    error?: string;
+    stack?: string;
   }
 ): Promise<string> {
   await ensureLogsDirectory();
