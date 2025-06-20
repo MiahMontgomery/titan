@@ -6,13 +6,17 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { TitanLogo } from "@/components/TitanLogo";
 import { useProjectContext } from "@/contexts/ProjectContext";
 import { PlusIcon } from "lucide-react";
+import { AddTaskModal } from "@/components/AddTaskModal";
 
 export default function Dashboard() {
   const { projects, isLoading, activeProjectId, setActiveProjectId, createNewProject } = useProjectContext();
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
 
   const openNewProjectModal = () => setIsNewProjectModalOpen(true);
   const closeNewProjectModal = () => setIsNewProjectModalOpen(false);
+  const openAddTaskModal = () => setIsAddTaskModalOpen(true);
+  const closeAddTaskModal = () => setIsAddTaskModalOpen(false);
 
   // Find active project
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -26,12 +30,20 @@ export default function Dashboard() {
             <TitanLogo size={32} className="mr-3" />
             <h1 className="text-2xl font-bold text-[#01F9C6]">TITAN Projects</h1>
           </div>
-          <button 
-            className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#01F9C6] border border-[#01F9C6] px-4 py-2 rounded-md transition duration-300 flex items-center"
-            onClick={openNewProjectModal}
-          >
-            <PlusIcon size={16} className="mr-1" /> Add New Project
-          </button>
+          <div className="flex gap-2">
+            <button 
+              className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#01F9C6] border border-[#01F9C6] px-4 py-2 rounded-md transition duration-300 flex items-center"
+              onClick={openNewProjectModal}
+            >
+              <PlusIcon size={16} className="mr-1" /> Add New Project
+            </button>
+            <button
+              className="bg-[#0e0e0e] hover:bg-opacity-80 text-[#39FF14] border border-[#39FF14] px-4 py-2 rounded-md transition duration-300 flex items-center"
+              onClick={openAddTaskModal}
+            >
+              <PlusIcon size={16} className="mr-1" /> Add Task
+            </button>
+          </div>
         </div>
       </header>
 
@@ -92,6 +104,12 @@ export default function Dashboard() {
         isOpen={isNewProjectModalOpen} 
         onClose={closeNewProjectModal}
         onSubmit={createNewProject}
+      />
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={closeAddTaskModal}
+        defaultProjectId={activeProjectId ? String(activeProjectId) : ''}
       />
     </div>
   );

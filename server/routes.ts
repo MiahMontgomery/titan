@@ -19,6 +19,7 @@ import {
 import dotenv from "dotenv";
 dotenv.config();
 import { OpenRouter } from '../services/openrouter';
+import { addTask } from '../data/queue';
 
 interface Goal {
   title: string;
@@ -87,6 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/create', async (req, res) => {
     try {
       const { name, prompt, userId } = req.body;
+      console.log("Creating project with name:", name, "prompt:", prompt, "userId:", userId);
       if (!name || !prompt || !userId) {
         return res.status(400).json({ error: 'Missing name, prompt, or userId' });
       }
@@ -98,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { role: 'system', content: `You are an expert project manager AI. Respond ONLY with valid JSON in the following format, and do not include any commentary or explanation:\n\n{\n  "features": [\n    {\n      "title": "string",\n      "description": "string",\n      "order": 0,\n      "milestones": [\n        {\n          "title": "string",\n          "order": 0,\n          "goals": [\n            {\n              "title": "string",\n              "order": 0\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n\nAll milestones must be nested inside their respective features, and all goals must be nested inside their respective milestones. Use the exact field names: title, description, order, milestones, goals.` },
           { role: 'user', content: `Break down this project into features, milestones, and goals: ${prompt}` }
         ],
-        max_tokens: 4000
+        max_tokens: 1000
       });
       console.log("AI raw response:", aiResponse.choices[0]?.message?.content);
       let plan;
@@ -546,6 +548,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // We don't expose the actual key here, but let the client know it's configured
       elevenLabsConfigured: process.env.ELEVENLABS_SIGNING_KEY ? true : false
     });
+  });
+
+  // Task routes
+  app.post('/api/tasks', async (req, res) => {
+    try {
+      const { type, projectId, url, priority, metadata } = req.body;
+      if (!type || !projectId) {
+        return res.status(400).json({ error: 'Missing required fields: type, projectId' });
+      }
+      const newTask = await addTask({
+        type,
+        projectId,
+        url,
+        priority,
+        metadata
+      });
+      res.status(201).json(newTask);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to add task' });
+    }
   });
 
   return httpServer;

@@ -142,3 +142,15 @@ export async function getProjectPerformance(projectId: number): Promise<{
   const response = await apiRequest("GET", `/api/projects/${projectId}/performance`);
   return response.json();
 }
+
+// Task API calls
+export async function createTask(data: {
+  type: string;
+  projectId: string;
+  url?: string;
+  priority?: number;
+  metadata?: Record<string, any>;
+}) {
+  const response = await apiRequest("POST", "/api/tasks", data);
+  return response.json();
+}
