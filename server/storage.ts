@@ -51,59 +51,60 @@ import {
 
 export interface IStorage {
   // User methods
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
   // Project methods
   getProjects(): Promise<Project[]>;
-  getProject(id: number): Promise<Project | undefined>;
+  getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
   
   // Feature methods
   createFeature(feature: InsertFeature): Promise<Feature>;
-  getFeaturesByProject(projectId: number): Promise<Feature[]>;
-  completeFeature(id: number): Promise<Feature | undefined>;
+  getFeaturesByProject(projectId: string): Promise<Feature[]>;
+  completeFeature(id: string): Promise<Feature | undefined>;
   
   // Milestone methods
   createMilestone(milestone: InsertMilestone): Promise<Milestone>;
-  getMilestonesByFeature(featureId: number): Promise<Milestone[]>;
+  getMilestonesByFeature(featureId: string): Promise<Milestone[]>;
   
   // Goal methods
   createGoal(goal: InsertGoal): Promise<Goal>;
-  getGoalsByMilestone(milestoneId: number): Promise<Goal[]>;
-  completeGoal(id: number): Promise<Goal | undefined>;
+  getGoalsByMilestone(milestoneId: string): Promise<Goal[]>;
+  completeGoal(id: string): Promise<Goal | undefined>;
   
   // Message methods
   createMessage(message: InsertMessage & { metadata?: Record<string, any> }): Promise<Message>;
-  getMessagesByProject(projectId: number): Promise<Message[]>;
+  getMessagesByProject(projectId: string): Promise<Message[]>;
   
   // Log methods
   createLog(log: InsertLog): Promise<Log>;
-  getLogsByProject(projectId: number): Promise<Log[]>;
+  getLogsByProject(projectId: string): Promise<Log[]>;
   
   // Output methods
   createOutput(output: InsertOutput): Promise<Output>;
-  getOutputsByProject(projectId: number): Promise<Output[]>;
-  approveOutput(id: number): Promise<Output | undefined>;
-  rejectOutput(id: number): Promise<Output | undefined>;
+  getOutputsByProject(projectId: string): Promise<Output[]>;
+  approveOutput(id: string): Promise<Output | undefined>;
+  rejectOutput(id: string): Promise<Output | undefined>;
   
   // Sale methods
   createSale(sale: InsertSale): Promise<Sale>;
-  getSalesByProject(projectId: number): Promise<Sale[]>;
+  getSalesByProject(projectId: string): Promise<Sale[]>;
   
   // Performance metrics
-  countMessagesByProjectAndDate(projectId: number, date: Date): Promise<number>;
-  countOutputsByProjectAndDate(projectId: number, date: Date): Promise<number>;
-  getSalesAmountByProjectAndDate(projectId: number, date: Date): Promise<number>;
-  sumSalesByProjectAndDate(projectId: number, date: Date): Promise<number>;
+  countMessagesByProjectAndDate(projectId: string, date: Date): Promise<number>;
+  countOutputsByProjectAndDate(projectId: string, date: Date): Promise<number>;
+  getSalesAmountByProjectAndDate(projectId: string, date: Date): Promise<number>;
+  sumSalesByProjectAndDate(projectId: string, date: Date): Promise<number>;
   
   // Persona methods
   createPersona(persona: InsertPersona): Promise<Persona>;
   getPersonas(): Promise<Persona[]>;
-  getPersona(id: number): Promise<Persona | undefined>;
-  updatePersona(id: number, persona: InsertPersona): Promise<Persona>;
-  deletePersona(id: number): Promise<void>;
+  getPersona(id: string): Promise<Persona | undefined>;
+  updatePersona(id: string, persona: InsertPersona): Promise<Persona>;
+  deletePersona(id: string): Promise<void>;
 }
 
 if (!process.env.DATABASE_URL) {
@@ -118,7 +119,7 @@ const db = drizzle(pool);
 
 export class PostgresStorage implements IStorage {
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
@@ -138,7 +139,7 @@ export class PostgresStorage implements IStorage {
     return await db.select().from(projects);
   }
 
-  async getProject(id: number): Promise<Project | undefined> {
+  async getProject(id: string): Promise<Project | undefined> {
     const result = await db.select().from(projects).where(eq(projects.id, id));
     return result[0];
   }
@@ -148,17 +149,21 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
   // Feature methods
   async createFeature(feature: InsertFeature): Promise<Feature> {
     const result = await db.insert(features).values(feature).returning();
     return result[0];
   }
 
-  async getFeaturesByProject(projectId: number): Promise<Feature[]> {
+  async getFeaturesByProject(projectId: string): Promise<Feature[]> {
     return await db.select().from(features).where(eq(features.projectId, projectId));
   }
 
-  async completeFeature(id: number): Promise<Feature | undefined> {
+  async completeFeature(id: string): Promise<Feature | undefined> {
     const result = await db.update(features)
       .set({ completed: true })
       .where(eq(features.id, id))
@@ -172,7 +177,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getMilestonesByFeature(featureId: number): Promise<Milestone[]> {
+  async getMilestonesByFeature(featureId: string): Promise<Milestone[]> {
     return await db.select().from(milestones).where(eq(milestones.featureId, featureId));
   }
 
@@ -182,11 +187,11 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getGoalsByMilestone(milestoneId: number): Promise<Goal[]> {
+  async getGoalsByMilestone(milestoneId: string): Promise<Goal[]> {
     return await db.select().from(goals).where(eq(goals.milestoneId, milestoneId));
   }
 
-  async completeGoal(id: number): Promise<Goal | undefined> {
+  async completeGoal(id: string): Promise<Goal | undefined> {
     const result = await db.update(goals)
       .set({ completed: true })
       .where(eq(goals.id, id))
@@ -200,7 +205,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getMessagesByProject(projectId: number): Promise<Message[]> {
+  async getMessagesByProject(projectId: string): Promise<Message[]> {
     return await db.select().from(messages).where(eq(messages.projectId, projectId));
   }
 
@@ -210,7 +215,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getLogsByProject(projectId: number): Promise<Log[]> {
+  async getLogsByProject(projectId: string): Promise<Log[]> {
     return await db.select().from(logs).where(eq(logs.projectId, projectId));
   }
 
@@ -220,11 +225,11 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getOutputsByProject(projectId: number): Promise<Output[]> {
+  async getOutputsByProject(projectId: string): Promise<Output[]> {
     return await db.select().from(outputs).where(eq(outputs.projectId, projectId));
   }
 
-  async approveOutput(id: number): Promise<Output | undefined> {
+  async approveOutput(id: string): Promise<Output | undefined> {
     const result = await db.update(outputs)
       .set({ approved: true })
       .where(eq(outputs.id, id))
@@ -232,7 +237,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async rejectOutput(id: number): Promise<Output | undefined> {
+  async rejectOutput(id: string): Promise<Output | undefined> {
     const result = await db.update(outputs)
       .set({ approved: false })
       .where(eq(outputs.id, id))
@@ -246,61 +251,37 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getSalesByProject(projectId: number): Promise<Sale[]> {
+  async getSalesByProject(projectId: string): Promise<Sale[]> {
     return await db.select().from(sales).where(eq(sales.projectId, projectId));
   }
 
   // Performance metrics
-  async countMessagesByProjectAndDate(projectId: number, date: Date): Promise<number> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    
+  async countMessagesByProjectAndDate(projectId: string, date: Date): Promise<number> {
     const result = await db.select({ count: sql`count(*)` })
       .from(messages)
-      .where(and(
-        eq(messages.projectId, projectId),
-        gte(messages.timestamp, startOfDay),
-        lte(messages.timestamp, endOfDay)
-      ));
+      .where(and(eq(messages.projectId, projectId), gte(messages.timestamp, date)));
     return Number(result[0]?.count || 0);
   }
 
-  async countOutputsByProjectAndDate(projectId: number, date: Date): Promise<number> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    
+  async countOutputsByProjectAndDate(projectId: string, date: Date): Promise<number> {
     const result = await db.select({ count: sql`count(*)` })
       .from(outputs)
-      .where(and(
-        eq(outputs.projectId, projectId),
-        gte(outputs.createdAt, startOfDay),
-        lte(outputs.createdAt, endOfDay)
-      ));
+      .where(and(eq(outputs.projectId, projectId), gte(outputs.createdAt, date)));
     return Number(result[0]?.count || 0);
   }
 
-  async getSalesAmountByProjectAndDate(projectId: number, date: Date): Promise<number> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    
+  async getSalesAmountByProjectAndDate(projectId: string, date: Date): Promise<number> {
     const result = await db.select({ sum: sql`sum(amount)` })
       .from(sales)
-      .where(and(
-        eq(sales.projectId, projectId),
-        gte(sales.timestamp, startOfDay),
-        lte(sales.timestamp, endOfDay)
-      ));
+      .where(and(eq(sales.projectId, projectId), gte(sales.timestamp, date)));
     return Number(result[0]?.sum || 0);
   }
 
-  async sumSalesByProjectAndDate(projectId: number, date: Date): Promise<number> {
-    return this.getSalesAmountByProjectAndDate(projectId, date);
+  async sumSalesByProjectAndDate(projectId: string, date: Date): Promise<number> {
+    const result = await db.select({ sum: sql`sum(amount)` })
+      .from(sales)
+      .where(and(eq(sales.projectId, projectId), gte(sales.timestamp, date)));
+    return Number(result[0]?.sum || 0);
   }
 
   // Persona methods
@@ -313,17 +294,17 @@ export class PostgresStorage implements IStorage {
     return await db.select().from(personas);
   }
 
-  async getPersona(id: number): Promise<Persona | undefined> {
+  async getPersona(id: string): Promise<Persona | undefined> {
     const result = await db.select().from(personas).where(eq(personas.id, id));
     return result[0];
   }
 
-  async updatePersona(id: number, persona: InsertPersona): Promise<Persona> {
+  async updatePersona(id: string, persona: InsertPersona): Promise<Persona> {
     const result = await db.update(personas).set(persona).where(eq(personas.id, id)).returning();
     return result[0];
   }
 
-  async deletePersona(id: number): Promise<void> {
+  async deletePersona(id: string): Promise<void> {
     await db.delete(personas).where(eq(personas.id, id));
   }
 }

@@ -2,7 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from 'dotenv';
+import helmet from 'helmet';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
 import { createServer } from 'http';
 dotenv.config();
 
@@ -15,14 +18,15 @@ console.log('Environment variables:', {
 
 const app = express();
 
-// Enable CORS for frontend (allow both localhost and your public IP)
+app.use(helmet());
 app.use(cors({
   origin: ['http://localhost:4000', 'http://localhost:5050'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
-
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

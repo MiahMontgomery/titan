@@ -16,6 +16,7 @@ const dbCredentials: any = {
   user: parsed.user,
   password: parsed.password,
   database: parsed.database || '',
+  ssl: false,
 };
 if (typeof parsed.ssl === 'boolean') {
   dbCredentials.ssl = parsed.ssl;

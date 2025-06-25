@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer } from "ws";
+import argon2 from 'argon2';
 import { z } from "zod";
 import { 
   insertProjectSchema, 
@@ -13,6 +14,7 @@ import {
   insertOutputSchema,
   insertSaleSchema,
   insertPersonaSchema,
+  insertUserSchema,
   type Feature as DBFeature,
   type Milestone as DBMilestone,
   type Goal as DBGoal,
@@ -23,6 +25,8 @@ dotenv.config();
 import { OpenRouter } from '../services/openrouter';
 import { addTask } from '../data/queue';
 import { credentialsService } from './credentials';
+import jwt from 'jsonwebtoken';
+import type { Request, Response, NextFunction } from 'express';
 
 interface Goal {
   title: string;
@@ -50,6 +54,24 @@ interface ProjectPlan {
 }
 
 const openRouter = new OpenRouter();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
+// Utility to wrap async route handlers and forward errors
+function catchAsync(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Load environment variables
@@ -87,8 +109,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
   
+  // --- Auth Endpoints ---
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { username, email, password } = insertUserSchema.parse(req.body);
+      // Check if user/email already exists
+      const existing = await storage.getUserByUsername(username);
+      if (existing) return res.status(409).json({ error: 'Username already taken' });
+      // Hash password
+      const hashedPassword = await argon2.hash(password);
+      // Store user
+      const user = await storage.createUser({ username, email, password: hashedPassword });
+      res.status(201).json({ id: user.id, username: user.username, email: user.email });
+    } catch (error: unknown) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      const user = await storage.getUserByUsername(username);
+      if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+      const valid = await argon2.verify(user.password, password);
+      if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+      // Issue JWT
+      const accessToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+      const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ accessToken, refreshToken });
+    } catch (error: unknown) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.post('/api/auth/refresh', (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.sendStatus(401);
+    jwt.verify(refreshToken, JWT_SECRET, (err: any, user: any) => {
+      if (err) return res.sendStatus(403);
+      const accessToken = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: '15m' });
+      res.json({ accessToken });
+    });
+  });
+
+  // --- JWT Auth Middleware ---
+  function authenticateJWT(req: Request, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.sendStatus(401);
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+      if (err) return res.sendStatus(403);
+      req.user = user;
+      next();
+    });
+  }
+
+  // --- Example Protected Route ---
+  app.get('/api/protected', authenticateJWT, (req, res) => {
+    res.json({ message: 'You are authenticated!', user: req.user });
+  });
+  
   // Project routes
-  app.post('/api/projects/create', async (req, res) => {
+  app.post('/api/projects/create', authenticateJWT, async (req, res) => {
     try {
       const { name, prompt, userId } = req.body;
       console.log("Creating project with name:", name, "prompt:", prompt, "userId:", userId);
@@ -191,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects', async (req, res) => {
+  app.get('/api/projects', authenticateJWT, async (req, res) => {
     try {
       const projects = await storage.getProjects();
       res.json(projects);
@@ -200,9 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id', async (req, res) => {
+  app.get('/api/projects/:id', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const project = await storage.getProject(id);
       
       if (!project) {
@@ -216,27 +298,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete project
-  app.delete("/api/projects/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const projectId = parseInt(id, 10);
-
-      if (isNaN(projectId)) {
-        return res.status(400).json({ error: "Invalid project ID" });
-      }
-
-      // Delete the project
-      await storage.deleteProject(projectId);
-
-      res.status(200).json({ message: "Project deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      res.status(500).json({ error: "Failed to delete project" });
-    }
-  });
+  app.delete("/api/projects/:id", authenticateJWT, catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    await storage.deleteProject(id);
+    res.status(200).json({ message: "Project deleted successfully" });
+  }));
   
   // Feature routes
-  app.post('/api/features/create', async (req, res) => {
+  app.post('/api/features/create', authenticateJWT, async (req, res) => {
     try {
       const featureData = insertFeatureSchema.parse(req.body);
       const feature = await storage.createFeature(featureData);
@@ -254,9 +323,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/features', async (req, res) => {
+  app.get('/api/projects/:id/features', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const features = await storage.getFeaturesByProject(projectId);
       res.json(features);
     } catch (error) {
@@ -264,22 +333,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/features', async (req, res) => {
-    try {
-      const projectId = parseInt(req.query.projectId as string);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ error: 'Invalid project ID' });
-      }
-      const features = await storage.getFeaturesByProject(projectId);
-      res.json(features);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to get features' });
+  app.get('/api/features', authenticateJWT, catchAsync(async (req: Request, res: Response) => {
+    const projectId = req.query.projectId as string;
+    if (!projectId) {
+      return res.status(400).json({ error: 'Invalid project ID' });
     }
-  });
+    const features = await storage.getFeaturesByProject(projectId);
+    res.json(features);
+  }));
   
-  app.put('/api/features/:id/complete', async (req, res) => {
+  app.put('/api/features/:id/complete', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const feature = await storage.completeFeature(id);
       
       if (!feature) {
@@ -296,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Milestone routes
-  app.post('/api/milestones/create', async (req, res) => {
+  app.post('/api/milestones/create', authenticateJWT, async (req, res) => {
     try {
       const milestoneData = insertMilestoneSchema.parse(req.body);
       const milestone = await storage.createMilestone(milestoneData);
@@ -314,9 +379,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/features/:id/milestones', async (req, res) => {
+  app.get('/api/features/:id/milestones', authenticateJWT, async (req, res) => {
     try {
-      const featureId = parseInt(req.params.id);
+      const featureId = req.params.id;
       const milestones = await storage.getMilestonesByFeature(featureId);
       res.json(milestones);
     } catch (error) {
@@ -325,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Goal routes
-  app.post('/api/goals/create', async (req, res) => {
+  app.post('/api/goals/create', authenticateJWT, async (req, res) => {
     try {
       const goalData = insertGoalSchema.parse(req.body);
       const goal = await storage.createGoal(goalData);
@@ -343,9 +408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/milestones/:id/goals', async (req, res) => {
+  app.get('/api/milestones/:id/goals', authenticateJWT, async (req, res) => {
     try {
-      const milestoneId = parseInt(req.params.id);
+      const milestoneId = req.params.id;
       const goals = await storage.getGoalsByMilestone(milestoneId);
       res.json(goals);
     } catch (error) {
@@ -353,9 +418,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/goals/:id/complete', async (req, res) => {
+  app.put('/api/goals/:id/complete', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const goal = await storage.completeGoal(id);
       
       if (!goal) {
@@ -372,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Message routes
-  app.post('/api/messages/create', async (req, res) => {
+  app.post('/api/messages/create', authenticateJWT, async (req, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage({
@@ -393,9 +458,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/messages', async (req, res) => {
+  app.get('/api/projects/:id/messages', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const messages = await storage.getMessagesByProject(projectId);
       res.json(messages);
     } catch (error) {
@@ -404,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Log routes
-  app.post('/api/logs/create', async (req, res) => {
+  app.post('/api/logs/create', authenticateJWT, async (req, res) => {
     try {
       const logData = insertLogSchema.parse(req.body);
       const log = await storage.createLog(logData);
@@ -422,9 +487,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/logs', async (req, res) => {
+  app.get('/api/projects/:id/logs', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const logs = await storage.getLogsByProject(projectId);
       res.json(logs);
     } catch (error) {
@@ -433,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Output routes
-  app.post('/api/outputs/create', async (req, res) => {
+  app.post('/api/outputs/create', authenticateJWT, async (req, res) => {
     try {
       const outputData = insertOutputSchema.parse(req.body);
       const output = await storage.createOutput(outputData);
@@ -451,9 +516,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/outputs', async (req, res) => {
+  app.get('/api/projects/:id/outputs', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const outputs = await storage.getOutputsByProject(projectId);
       res.json(outputs);
     } catch (error) {
@@ -461,9 +526,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/outputs/:id/approve', async (req, res) => {
+  app.put('/api/outputs/:id/approve', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const output = await storage.approveOutput(id);
       
       if (!output) {
@@ -479,9 +544,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/outputs/:id/reject', async (req, res) => {
+  app.put('/api/outputs/:id/reject', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const output = await storage.rejectOutput(id);
       
       if (!output) {
@@ -498,7 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Sales routes
-  app.post('/api/sales/create', async (req, res) => {
+  app.post('/api/sales/create', authenticateJWT, async (req, res) => {
     try {
       const saleData = insertSaleSchema.parse(req.body);
       const sale = await storage.createSale(saleData);
@@ -516,9 +581,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/sales', async (req, res) => {
+  app.get('/api/projects/:id/sales', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const sales = await storage.getSalesByProject(projectId);
       res.json(sales);
     } catch (error) {
@@ -526,9 +591,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/projects/:id/performance', async (req, res) => {
+  app.get('/api/projects/:id/performance', authenticateJWT, async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = req.params.id;
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       
@@ -554,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Task routes
-  app.post('/api/tasks', async (req, res) => {
+  app.post('/api/tasks', authenticateJWT, async (req, res) => {
     try {
       const { type, projectId, url, priority, metadata } = req.body;
       if (!type || !projectId) {
@@ -574,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Persona routes with enhanced credential management
-  app.post('/api/personas', async (req, res) => {
+  app.post('/api/personas', authenticateJWT, async (req, res) => {
     try {
       const personaData = insertPersonaSchema.parse(req.body);
       
@@ -595,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/personas', async (_req, res) => {
+  app.get('/api/personas', authenticateJWT, async (_req, res) => {
     try {
       const personas = await storage.getPersonas();
       // Decrypt credentials for each persona
@@ -612,9 +677,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/personas/:id', async (req, res) => {
+  app.get('/api/personas/:id', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const persona = await storage.getPersona(id);
       if (!persona) {
         return res.status(404).json({ error: 'Persona not found' });
@@ -635,9 +700,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/personas/:id', async (req, res) => {
+  app.put('/api/personas/:id', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const personaData = insertPersonaSchema.parse(req.body);
       
       // Get existing persona to ensure we have required fields
@@ -677,9 +742,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/personas/:id', async (req, res) => {
+  app.delete('/api/personas/:id', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       await storage.deletePersona(id);
       res.json({ message: 'Persona deleted successfully' });
     } catch (error) {
@@ -688,9 +753,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test credentials for a specific platform
-  app.post('/api/personas/:id/test-credentials', async (req, res) => {
+  app.post('/api/personas/:id/test-credentials', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { platform, credentials } = req.body;
       
       if (!platform || !credentials) {
@@ -710,13 +775,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test all credentials for a persona
-  app.post('/api/personas/:id/test-all-credentials', async (req, res) => {
+  app.post('/api/personas/:id/test-all-credentials', authenticateJWT, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       
       const persona = await storage.getPersona(id);
       if (!persona) {
-        return res.status(404).json({ error: 'Persona not found' });
+        return res.json({ message: 'No credentials to test' });
       }
       
       if (!persona.credentials) {
@@ -747,6 +812,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ error: 'Failed to test credentials' });
     }
+  });
+
+  // Not found handler
+  app.use((req, res, next) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
+  // Centralized error handler
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || 'Internal Server Error';
+    res.status(status).json({ error: message });
   });
 
   return httpServer;

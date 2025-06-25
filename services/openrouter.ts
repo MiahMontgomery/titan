@@ -35,7 +35,7 @@ export class OpenRouter {
     this.apiKey = process.env.OPENROUTER_API_KEY;
   }
 
-  private async chat(request: ChatRequest): Promise<ChatResponse> {
+  public async chat(request: ChatRequest): Promise<ChatResponse> {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -52,16 +52,16 @@ export class OpenRouter {
       throw new Error(`OpenRouter API error: ${error}`);
     }
 
-    return response.json();
+    return response.json() as Promise<ChatResponse>;
   }
   
   private async getProjectContext(projectId: number): Promise<string> {
-    const project = await storage.getProject(projectId);
+    const project = await storage.getProject(String(projectId));
     if (!project) throw new Error('Project not found');
 
-    const features = await storage.getFeaturesByProject(projectId);
-    const messages = await storage.getMessagesByProject(projectId);
-    const logs = await storage.getLogsByProject(projectId);
+    const features = await storage.getFeaturesByProject(String(projectId));
+    const messages = await storage.getMessagesByProject(String(projectId));
+    const logs = await storage.getLogsByProject(String(projectId));
     
     // Get the last 10 messages for context
     const recentMessages = messages.slice(-10);
@@ -76,12 +76,12 @@ export class OpenRouter {
       context += `- ${feature.title}: ${feature.description || 'No description'}\n`;
       
       // Get milestones for this feature
-      const milestones = await storage.getMilestonesByFeature(feature.id);
+      const milestones = await storage.getMilestonesByFeature(String(feature.id));
       for (const milestone of milestones) {
         context += `  * ${milestone.title}\n`;
         
         // Get goals for this milestone
-        const goals = await storage.getGoalsByMilestone(milestone.id);
+        const goals = await storage.getGoalsByMilestone(String(milestone.id));
         for (const goal of goals) {
           context += `    > ${goal.title} (${goal.completed ? 'Completed' : 'Pending'})\n`;
         }
@@ -232,7 +232,7 @@ Remember: Your responses should be tailored to the specific project context and 
       throw new Error(`OpenRouter API error: ${error}`);
     }
     
-    const data = await response.json();
-    return data.data.map((model: any) => model.id);
+    const data = await response.json() as { data: { id: string }[] };
+    return data.data.map((model) => model.id);
   }
 } 
