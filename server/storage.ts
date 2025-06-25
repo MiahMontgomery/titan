@@ -23,6 +23,7 @@ import {
   logs,
   outputs,
   sales,
+  personas,
   type User, 
   type InsertUser,
   type Project,
@@ -40,7 +41,9 @@ import {
   type Output,
   type InsertOutput,
   type Sale,
-  type InsertSale
+  type InsertSale,
+  type Persona,
+  type InsertPersona
 } from "@shared/schema";
 
 // modify the interface with any CRUD methods
@@ -94,6 +97,13 @@ export interface IStorage {
   countOutputsByProjectAndDate(projectId: number, date: Date): Promise<number>;
   getSalesAmountByProjectAndDate(projectId: number, date: Date): Promise<number>;
   sumSalesByProjectAndDate(projectId: number, date: Date): Promise<number>;
+  
+  // Persona methods
+  createPersona(persona: InsertPersona): Promise<Persona>;
+  getPersonas(): Promise<Persona[]>;
+  getPersona(id: number): Promise<Persona | undefined>;
+  updatePersona(id: number, persona: InsertPersona): Promise<Persona>;
+  deletePersona(id: number): Promise<void>;
 }
 
 if (!process.env.DATABASE_URL) {
@@ -291,6 +301,30 @@ export class PostgresStorage implements IStorage {
 
   async sumSalesByProjectAndDate(projectId: number, date: Date): Promise<number> {
     return this.getSalesAmountByProjectAndDate(projectId, date);
+  }
+
+  // Persona methods
+  async createPersona(persona: InsertPersona): Promise<Persona> {
+    const result = await db.insert(personas).values(persona).returning();
+    return result[0];
+  }
+
+  async getPersonas(): Promise<Persona[]> {
+    return await db.select().from(personas);
+  }
+
+  async getPersona(id: number): Promise<Persona | undefined> {
+    const result = await db.select().from(personas).where(eq(personas.id, id));
+    return result[0];
+  }
+
+  async updatePersona(id: number, persona: InsertPersona): Promise<Persona> {
+    const result = await db.update(personas).set(persona).where(eq(personas.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePersona(id: number): Promise<void> {
+    await db.delete(personas).where(eq(personas.id, id));
   }
 }
 

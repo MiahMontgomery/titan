@@ -174,3 +174,19 @@ export const insertSaleSchema = createInsertSchema(sales).pick({
 
 export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Sale = typeof sales.$inferSelect;
+
+// Persona schema
+export const personas = pgTable("personas", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  avatar: text("avatar"),
+  credentials: json("credentials").notNull(),
+  strategy: text("strategy"),
+  schedule: text("schedule"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Persona = typeof personas.$inferSelect;
+export type InsertPersona = typeof personas.$inferInsert;
+
+export const insertPersonaSchema = createInsertSchema(personas);
