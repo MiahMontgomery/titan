@@ -27,6 +27,7 @@ import { addTask } from '../data/queue';
 import { credentialsService } from './credentials';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
+import { getPlatformAdapter } from './platformAdapters';
 
 interface Goal {
   title: string;
@@ -134,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const valid = await argon2.verify(user.password, password);
       if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
       // Issue JWT
-      const accessToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+      const accessToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '12h' });
       const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
       res.json({ accessToken, refreshToken });
     } catch (error: unknown) {
@@ -811,6 +812,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: 'Failed to test credentials' });
+    }
+  });
+
+  // Add or update credentials for a specific platform
+  app.post('/api/personas/:id/credentials', authenticateJWT, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { platform, credentials } = req.body;
+      if (!platform || !credentials) {
+        return res.status(400).json({ error: 'Missing platform or credentials' });
+      }
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      // Decrypt existing credentials
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      // Update/add platform credentials
+      allCredentials[platform as string] = credentials;
+      // Encrypt and save
+      const updatedPersona = await storage.updatePersona(id, {
+        name: persona.name,
+        avatar: persona.avatar ?? undefined,
+        credentials: credentialsService.encryptCredentials(allCredentials),
+        strategy: persona.strategy ?? undefined,
+        schedule: persona.schedule ?? undefined
+      });
+      res.json({ message: 'Credentials updated', credentials: allCredentials[platform as string] });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update credentials' });
+    }
+  });
+
+  // Delete credentials for a specific platform
+  app.delete('/api/personas/:id/credentials', authenticateJWT, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const platform = req.query.platform;
+      if (!platform || typeof platform !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid platform' });
+      }
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      if (!allCredentials[platform]) {
+        return res.status(404).json({ error: 'No credentials for this platform' });
+      }
+      delete allCredentials[platform];
+      const updatedPersona = await storage.updatePersona(id, {
+        name: persona.name,
+        avatar: persona.avatar ?? undefined,
+        credentials: credentialsService.encryptCredentials(allCredentials),
+        strategy: persona.strategy ?? undefined,
+        schedule: persona.schedule ?? undefined
+      });
+      res.json({ message: 'Credentials deleted', credentials: allCredentials });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete credentials' });
+    }
+  });
+
+  // Get credentials for a specific platform
+  app.get('/api/personas/:id/credentials', authenticateJWT, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const platform = req.query.platform;
+      if (!platform || typeof platform !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid platform' });
+      }
+      const persona = await storage.getPersona(id);
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      if (!allCredentials[platform]) {
+        return res.status(404).json({ error: 'No credentials for this platform' });
+      }
+      res.json({ platform, credentials: allCredentials[platform] });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get credentials' });
+    }
+  });
+
+  // Platform Adapter Endpoints
+  app.post('/api/personas/:id/platform/:platform/login', authenticateJWT, async (req, res) => {
+    try {
+      const { id, platform } = req.params;
+      const persona = await storage.getPersona(id);
+      if (!persona) return res.status(404).json({ error: 'Persona not found' });
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      const credentials = allCredentials[platform];
+      if (!credentials) return res.status(404).json({ error: 'No credentials for this platform' });
+      const adapter = getPlatformAdapter(platform);
+      if (!adapter) return res.status(400).json({ error: 'Unsupported platform' });
+      const result = await adapter.login(credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to login' });
+    }
+  });
+
+  app.post('/api/personas/:id/platform/:platform/post', authenticateJWT, async (req, res) => {
+    try {
+      const { id, platform } = req.params;
+      const { content } = req.body;
+      const persona = await storage.getPersona(id);
+      if (!persona) return res.status(404).json({ error: 'Persona not found' });
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      const credentials = allCredentials[platform];
+      if (!credentials) return res.status(404).json({ error: 'No credentials for this platform' });
+      const adapter = getPlatformAdapter(platform);
+      if (!adapter) return res.status(400).json({ error: 'Unsupported platform' });
+      const result = await adapter.post(content, credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to post' });
+    }
+  });
+
+  app.get('/api/personas/:id/platform/:platform/inbox', authenticateJWT, async (req, res) => {
+    try {
+      const { id, platform } = req.params;
+      const persona = await storage.getPersona(id);
+      if (!persona) return res.status(404).json({ error: 'Persona not found' });
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      const credentials = allCredentials[platform];
+      if (!credentials) return res.status(404).json({ error: 'No credentials for this platform' });
+      const adapter = getPlatformAdapter(platform);
+      if (!adapter) return res.status(400).json({ error: 'Unsupported platform' });
+      const result = await adapter.fetchInbox(credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch inbox' });
+    }
+  });
+
+  app.post('/api/personas/:id/platform/:platform/message', authenticateJWT, async (req, res) => {
+    try {
+      const { id, platform } = req.params;
+      const { recipient, message } = req.body;
+      const persona = await storage.getPersona(id);
+      if (!persona) return res.status(404).json({ error: 'Persona not found' });
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      const credentials = allCredentials[platform];
+      if (!credentials) return res.status(404).json({ error: 'No credentials for this platform' });
+      const adapter = getPlatformAdapter(platform);
+      if (!adapter) return res.status(400).json({ error: 'Unsupported platform' });
+      const result = await adapter.sendMessage(recipient, message, credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  app.get('/api/personas/:id/platform/:platform/engagement', authenticateJWT, async (req, res) => {
+    try {
+      const { id, platform } = req.params;
+      const persona = await storage.getPersona(id);
+      if (!persona) return res.status(404).json({ error: 'Persona not found' });
+      let allCredentials: Record<string, any> = persona.credentials ?
+        (typeof persona.credentials === 'string' ? credentialsService.decryptCredentials(persona.credentials) : persona.credentials)
+        : {};
+      const credentials = allCredentials[platform];
+      if (!credentials) return res.status(404).json({ error: 'No credentials for this platform' });
+      const adapter = getPlatformAdapter(platform);
+      if (!adapter) return res.status(400).json({ error: 'Unsupported platform' });
+      const result = await adapter.fetchEngagement(credentials);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch engagement' });
     }
   });
 

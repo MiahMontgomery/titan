@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { z } from 'zod';
+import { loginInstagram } from '../puppeteer/instagram';
+import { loginLinkedIn } from '../puppeteer/linkedin';
 
 // Encryption key - in production, this should be stored securely
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long!!';
@@ -129,23 +131,17 @@ export class CredentialsService {
   private async testInstagramCredentials(credentials: Record<string, any>): Promise<CredentialTestResult> {
     const required = ['username', 'password'];
     const missing = required.filter(field => !credentials[field]);
-    
     if (missing.length > 0) {
       return {
         success: false,
         message: `Missing required fields: ${missing.join(', ')}`
       };
     }
-
     try {
-      // TODO: Implement actual Instagram API test
-      // For now, just validate format
-      const isValidFormat = credentials.username && credentials.password;
-
-      return {
-        success: isValidFormat,
-        message: isValidFormat ? 'Credentials format is valid' : 'Invalid credential format'
-      };
+      // Real Instagram login test using Puppeteer
+      const { username, password } = credentials;
+      const result = await loginInstagram({ username, password });
+      return result;
     } catch (error) {
       return {
         success: false,
@@ -155,26 +151,19 @@ export class CredentialsService {
   }
 
   private async testLinkedInCredentials(credentials: Record<string, any>): Promise<CredentialTestResult> {
-    const required = ['client_id', 'client_secret', 'access_token'];
+    const required = ['client_id', 'client_secret', 'access_token', 'username', 'password'];
     const missing = required.filter(field => !credentials[field]);
-    
     if (missing.length > 0) {
       return {
         success: false,
         message: `Missing required fields: ${missing.join(', ')}`
       };
     }
-
     try {
-      // TODO: Implement actual LinkedIn API test
-      const isValidFormat = Object.values(credentials).every(value => 
-        typeof value === 'string' && value.length > 0
-      );
-
-      return {
-        success: isValidFormat,
-        message: isValidFormat ? 'Credentials format is valid' : 'Invalid credential format'
-      };
+      // Real LinkedIn login test using Puppeteer
+      const { username, password } = credentials;
+      const result = await loginLinkedIn({ username, password });
+      return result;
     } catch (error) {
       return {
         success: false,
