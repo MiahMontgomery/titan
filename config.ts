@@ -1,0 +1,1 @@
+export const AUTOMATION_ENGINE = process.env.AUTOMATION_ENGINE || 'puppeteer'; 

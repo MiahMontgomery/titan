@@ -1,7 +1,10 @@
 import crypto from 'crypto';
 import { z } from 'zod';
-import { loginInstagram } from '../puppeteer/instagram';
-import { loginLinkedIn } from '../puppeteer/linkedin';
+import { loginInstagram as puppeteerLoginInstagram } from '../puppeteer/instagram';
+import { loginInstagram as playwrightLoginInstagram } from '../playwright/instagram';
+import { loginLinkedIn as puppeteerLoginLinkedIn } from '../puppeteer/linkedin';
+import { loginLinkedIn as playwrightLoginLinkedIn } from '../playwright/linkedin';
+import { AUTOMATION_ENGINE } from '../config';
 
 // Encryption key - in production, this should be stored securely
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long!!';
@@ -55,7 +58,8 @@ export class CredentialsService {
       }
       
       const iv = Buffer.from(ivHex, 'hex');
-      const decipher = crypto.createDecipher(ALGORITHM, ENCRYPTION_KEY);
+      const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
       
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
@@ -138,10 +142,15 @@ export class CredentialsService {
       };
     }
     try {
-      // Real Instagram login test using Puppeteer
-      const { username, password } = credentials;
-      const result = await loginInstagram({ username, password });
-      return result;
+      if ((AUTOMATION_ENGINE || 'puppeteer') === 'playwright') {
+        const { username, password } = credentials;
+        const result = await playwrightLoginInstagram({ username, password });
+        return result;
+      } else {
+        const { username, password } = credentials;
+        const result = await puppeteerLoginInstagram({ username, password });
+        return result;
+      }
     } catch (error) {
       return {
         success: false,
@@ -160,10 +169,15 @@ export class CredentialsService {
       };
     }
     try {
-      // Real LinkedIn login test using Puppeteer
-      const { username, password } = credentials;
-      const result = await loginLinkedIn({ username, password });
-      return result;
+      if ((AUTOMATION_ENGINE || 'puppeteer') === 'playwright') {
+        const { username, password } = credentials;
+        const result = await playwrightLoginLinkedIn({ username, password });
+        return result;
+      } else {
+        const { username, password } = credentials;
+        const result = await puppeteerLoginLinkedIn({ username, password });
+        return result;
+      }
     } catch (error) {
       return {
         success: false,

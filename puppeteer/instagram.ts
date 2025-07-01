@@ -196,6 +196,7 @@ export async function fetchInstagramInbox(credentials: { username: string; passw
     });
     return dms;
   } catch (err) {
+    console.log('[Instagram] Exception:', err);
     return [];
   } finally {
     await browser.close();

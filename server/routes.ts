@@ -958,6 +958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await adapter.fetchInbox(credentials);
       res.json(result);
     } catch (error) {
+      console.log(error);
       res.status(500).json({ error: 'Failed to fetch inbox' });
     }
   });
