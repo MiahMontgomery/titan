@@ -101,7 +101,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskCreated, defaultProjectId 
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-md bg-[#39FF14] text-black font-semibold hover:bg-[#01F9C6] transition-colors"
+              className="px-4 py-2 rounded-md bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition-colors"
               disabled={isCreating || !projectId || (taskType === 'screenshot' && !taskUrl) || ((taskType === 'chat' || taskType === 'plan' || taskType === 'voice') && !taskPrompt)}
             >
               {isCreating ? 'Creating...' : 'Create Task'}

@@ -28,7 +28,7 @@ export class WebSocketClient {
     try {
       this.socket = new WebSocket(this.url);
       this.updateStatus("connecting");
-
+      
       this.socket.onopen = () => {
         console.log("WebSocket connected");
         this.reconnectAttempts = 0;
@@ -46,7 +46,7 @@ export class WebSocketClient {
         console.error("WebSocket error:", error);
         this.updateStatus("error");
       };
-
+      
       this.socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);

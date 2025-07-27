@@ -62,8 +62,8 @@ export function useProjectData(projectId: number | null): ProjectDataResult {
           milestonesMap[milestone.featureId] = [];
         }
         milestonesMap[milestone.featureId].push(milestone);
-      }
-    });
+    }
+  });
   }
 
   const milestoneIds = milestones ? milestones.map(m => m.id) : [];
@@ -80,8 +80,8 @@ export function useProjectData(projectId: number | null): ProjectDataResult {
           goalsMap[goal.milestoneId] = [];
         }
         goalsMap[goal.milestoneId].push(goal);
-      }
-    });
+    }
+  });
   }
 
   // Mutations

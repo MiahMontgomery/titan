@@ -27,6 +27,13 @@ import { addTask } from '../data/queue';
 import { credentialsService } from './credentials';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
+import express from 'express';
+import { enhancedBrain } from '../core/brain';
+import { projectPlanner } from '../core/planner';
+import { researchEngine } from '../core/researcher';
+import { selfImprover } from '../core/self-improver';
+import { coordinator } from '../core/coordinator';
+import { agentManager } from '../core/manager';
 
 interface Goal {
   title: string;
@@ -814,6 +821,333 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced autonomy routes
+  app.post('/autonomous-projects', async (req, res) => {
+    try {
+      const { title, description, goals } = req.body;
+      const project = await enhancedBrain.createAutonomousProject(title, description, goals);
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create autonomous project' });
+    }
+  });
+
+  app.get('/autonomous-projects', async (req, res) => {
+    try {
+      const projects = await enhancedBrain.getAllAutonomousProjects();
+      res.json(projects);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch autonomous projects' });
+    }
+  });
+
+  app.get('/autonomous-projects/:id', async (req, res) => {
+    try {
+      const project = await enhancedBrain.getAutonomousProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: 'Autonomous project not found' });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch autonomous project' });
+    }
+  });
+
+  // Project planning routes
+  app.post('/projects/:id/plan', async (req, res) => {
+    try {
+      const { title, description, goals } = req.body;
+      const plan = await projectPlanner.createProjectPlan(
+        req.params.id,
+        title,
+        description,
+        goals
+      );
+      res.json(plan);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create project plan' });
+    }
+  });
+
+  app.get('/projects/:id/plan', async (req, res) => {
+    try {
+      const plan = await projectPlanner.loadPlan(req.params.id);
+      if (!plan) {
+        return res.status(404).json({ error: 'Project plan not found' });
+      }
+      res.json(plan);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch project plan' });
+    }
+  });
+
+  app.get('/projects/:id/progress', async (req, res) => {
+    try {
+      const progress = await projectPlanner.getProjectProgress(req.params.id);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch project progress' });
+    }
+  });
+
+  // Research routes
+  app.post('/research', async (req, res) => {
+    try {
+      const { topic, scope, questions } = req.body;
+      const researchTask = await researchEngine.createResearchTask(topic, scope, questions);
+      res.json(researchTask);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create research task' });
+    }
+  });
+
+  app.post('/research/:id/execute', async (req, res) => {
+    try {
+      const findings = await researchEngine.executeResearch(req.params.id);
+      res.json(findings);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to execute research' });
+    }
+  });
+
+  app.get('/research/:id/summary', async (req, res) => {
+    try {
+      const summary = await researchEngine.getResearchSummary(req.params.id);
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch research summary' });
+    }
+  });
+
+  // Self-improvement routes
+  app.post('/projects/:id/metrics', async (req, res) => {
+    try {
+      const { metric, value, target, unit, context } = req.body;
+      await selfImprover.recordMetric(req.params.id, metric, value, target, unit, context);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to record metric' });
+    }
+  });
+
+  app.post('/projects/:id/failures', async (req, res) => {
+    try {
+      const { taskId, error, context } = req.body;
+      await selfImprover.recordFailure(req.params.id, taskId, error, context);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to record failure' });
+    }
+  });
+
+  app.get('/projects/:id/performance', async (req, res) => {
+    try {
+      const report = await selfImprover.getPerformanceReport(req.params.id);
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch performance report' });
+    }
+  });
+
+  // Coordination routes
+  app.post('/projects/:id/collaborations', async (req, res) => {
+    try {
+      const { title, description, requiredPersonas, deadline } = req.body;
+      const collaboration = await coordinator.createCollaboration(
+        req.params.id,
+        title,
+        description,
+        requiredPersonas,
+        deadline ? new Date(deadline) : undefined
+      );
+      res.json(collaboration);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create collaboration' });
+    }
+  });
+
+  app.put('/projects/:id/collaborations/:collabId/progress', async (req, res) => {
+    try {
+      const { progress, personaId } = req.body;
+      await coordinator.updateCollaborationProgress(
+        req.params.id,
+        req.params.collabId,
+        progress,
+        personaId
+      );
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update collaboration progress' });
+    }
+  });
+
+  app.get('/projects/:id/collaboration-status', async (req, res) => {
+    try {
+      const status = await coordinator.getCollaborationStatus(req.params.id);
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch collaboration status' });
+    }
+  });
+
+  app.get('/projects/:id/conflicts', async (req, res) => {
+    try {
+      const conflicts = await coordinator.detectConflicts(req.params.id);
+      res.json(conflicts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to detect conflicts' });
+    }
+  });
+
+  app.put('/projects/:id/conflicts/:conflictId/resolve', async (req, res) => {
+    try {
+      const { resolution } = req.body;
+      await coordinator.resolveConflict(req.params.id, req.params.conflictId, resolution);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to resolve conflict' });
+    }
+  });
+
+  app.get('/projects/:id/workflow-optimization', async (req, res) => {
+    try {
+      const optimization = await coordinator.optimizeWorkflow(req.params.id);
+      res.json(optimization);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to optimize workflow' });
+    }
+  });
+
+  // Agent management routes
+  app.post('/agents', async (req, res) => {
+    try {
+      const { id, type, name } = req.body;
+      const agent = await agentManager.createAgent(id, type, name);
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create agent' });
+    }
+  });
+
+  app.get('/agents/:id', async (req, res) => {
+    try {
+      const agent = await agentManager.getAgent(req.params.id);
+      if (!agent) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch agent' });
+    }
+  });
+
+  app.put('/agents/:id/status', async (req, res) => {
+    try {
+      const { status } = req.body;
+      await agentManager.updateAgentStatus(req.params.id, status);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update agent status' });
+    }
+  });
+
+  // Task execution routes
+  app.post('/tasks', async (req, res) => {
+    try {
+      const task = req.body;
+      const result = await enhancedBrain.executeTask(task);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to execute task' });
+    }
+  });
+
+  // Persona management routes
+  app.get('/personas', async (req, res) => {
+    try {
+      const personas = await storage.getAllPersonas();
+      res.json(personas);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch personas' });
+    }
+  });
+
+  app.post('/personas', async (req, res) => {
+    try {
+      const persona = await storage.createPersona(req.body);
+      res.json(persona);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create persona' });
+    }
+  });
+
+  app.get('/personas/:id', async (req, res) => {
+    try {
+      const persona = await storage.getPersona(parseInt(req.params.id));
+      if (!persona) {
+        return res.status(404).json({ error: 'Persona not found' });
+      }
+      res.json(persona);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch persona' });
+    }
+  });
+
+  app.put('/personas/:id', async (req, res) => {
+    try {
+      const persona = await storage.updatePersona(parseInt(req.params.id), req.body);
+      res.json(persona);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update persona' });
+    }
+  });
+
+  app.delete('/personas/:id', async (req, res) => {
+    try {
+      await storage.deletePersona(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete persona' });
+    }
+  });
+
+  // Logs and monitoring routes
+  app.get('/projects/:id/logs', async (req, res) => {
+    try {
+      const logs = await storage.getLogs(parseInt(req.params.id));
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+  });
+
+  app.get('/projects/:id/messages', async (req, res) => {
+    try {
+      const messages = await storage.getMessages(parseInt(req.params.id));
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
+  app.get('/projects/:id/outputs', async (req, res) => {
+    try {
+      const outputs = await storage.getOutputs(parseInt(req.params.id));
+      res.json(outputs);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch outputs' });
+    }
+  });
+
+  app.get('/projects/:id/sales', async (req, res) => {
+    try {
+      const sales = await storage.getSales(parseInt(req.params.id));
+      res.json(sales);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch sales' });
+    }
+  });
+
   // Not found handler
   app.use((req, res, next) => {
     res.status(404).json({ error: 'Not found' });
@@ -828,3 +1162,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return httpServer;
 }
+
+const router = express.Router();
+
+// Existing routes
+router.get('/projects', async (req, res) => {
+  try {
+    const projects = await storage.getAllProjects();
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+router.post('/projects', async (req, res) => {
+  try {
+    const { name, prompt } = req.body;
+    const project = await storage.createProject({ name, prompt });
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create project' });
+  }
+});
+
+router.get('/projects/:id', async (req, res) => {
+  try {
+    const project = await storage.getProject(parseInt(req.params.id));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch project' });
+  }
+});
+
+// Enhanced autonomy routes
+router.post('/autonomous-projects', async (req, res) => {
+  try {
+    const { title, description, goals } = req.body;
+    const project = await enhancedBrain.createAutonomousProject(title, description, goals);
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create autonomous project' });
+  }
+});
+
+router.get('/autonomous-projects', async (req, res) => {
+  try {
+    const projects = await enhancedBrain.getAllAutonomousProjects();
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch autonomous projects' });
+  }
+});
+
+router.get('/autonomous-projects/:id', async (req, res) => {
+  try {
+    const project = await enhancedBrain.getAutonomousProject(req.params.id);
+    if (!project) {
+      return res.status(404).json({ error: 'Autonomous project not found' });
+    }
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch autonomous project' });
+  }
+});
+
+// Project planning routes
+router.post('/projects/:id/plan', async (req, res) => {
+  try {
+    const { title, description, goals } = req.body;
+    const plan = await projectPlanner.createProjectPlan(
+      req.params.id,
+      title,
+      description,
+      goals
+    );
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create project plan' });
+  }
+});
+
+router.get('/projects/:id/plan', async (req, res) => {
+  try {
+    const plan = await projectPlanner.loadPlan(req.params.id);
+    if (!plan) {
+      return res.status(404).json({ error: 'Project plan not found' });
+    }
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch project plan' });
+  }
+});
+
+router.get('/projects/:id/progress', async (req, res) => {
+  try {
+    const progress = await projectPlanner.getProjectProgress(req.params.id);
+    res.json(progress);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch project progress' });
+  }
+});
+
+// Research routes
+router.post('/research', async (req, res) => {
+  try {
+    const { topic, scope, questions } = req.body;
+    const researchTask = await researchEngine.createResearchTask(topic, scope, questions);
+    res.json(researchTask);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create research task' });
+  }
+});
+
+router.post('/research/:id/execute', async (req, res) => {
+  try {
+    const findings = await researchEngine.executeResearch(req.params.id);
+    res.json(findings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to execute research' });
+  }
+});
+
+router.get('/research/:id/summary', async (req, res) => {
+  try {
+    const summary = await researchEngine.getResearchSummary(req.params.id);
+    res.json(summary);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch research summary' });
+  }
+});
+
+// Self-improvement routes
+router.post('/projects/:id/metrics', async (req, res) => {
+  try {
+    const { metric, value, target, unit, context } = req.body;
+    await selfImprover.recordMetric(req.params.id, metric, value, target, unit, context);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to record metric' });
+  }
+});
+
+router.post('/projects/:id/failures', async (req, res) => {
+  try {
+    const { taskId, error, context } = req.body;
+    await selfImprover.recordFailure(req.params.id, taskId, error, context);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to record failure' });
+  }
+});
+
+router.get('/projects/:id/performance', async (req, res) => {
+  try {
+    const report = await selfImprover.getPerformanceReport(req.params.id);
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch performance report' });
+  }
+});
+
+// Coordination routes
+router.post('/projects/:id/collaborations', async (req, res) => {
+  try {
+    const { title, description, requiredPersonas, deadline } = req.body;
+    const collaboration = await coordinator.createCollaboration(
+      req.params.id,
+      title,
+      description,
+      requiredPersonas,
+      deadline ? new Date(deadline) : undefined
+    );
+    res.json(collaboration);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create collaboration' });
+  }
+});
+
+router.put('/projects/:id/collaborations/:collabId/progress', async (req, res) => {
+  try {
+    const { progress, personaId } = req.body;
+    await coordinator.updateCollaborationProgress(
+      req.params.id,
+      req.params.collabId,
+      progress,
+      personaId
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update collaboration progress' });
+  }
+});
+
+router.get('/projects/:id/collaboration-status', async (req, res) => {
+  try {
+    const status = await coordinator.getCollaborationStatus(req.params.id);
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch collaboration status' });
+  }
+});
+
+router.get('/projects/:id/conflicts', async (req, res) => {
+  try {
+    const conflicts = await coordinator.detectConflicts(req.params.id);
+    res.json(conflicts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to detect conflicts' });
+  }
+});
+
+router.put('/projects/:id/conflicts/:conflictId/resolve', async (req, res) => {
+  try {
+    const { resolution } = req.body;
+    await coordinator.resolveConflict(req.params.id, req.params.conflictId, resolution);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to resolve conflict' });
+  }
+});
+
+router.get('/projects/:id/workflow-optimization', async (req, res) => {
+  try {
+    const optimization = await coordinator.optimizeWorkflow(req.params.id);
+    res.json(optimization);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to optimize workflow' });
+  }
+});
+
+// Agent management routes
+router.post('/agents', async (req, res) => {
+  try {
+    const { id, type, name } = req.body;
+    const agent = await agentManager.createAgent(id, type, name);
+    res.json(agent);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create agent' });
+  }
+});
+
+router.get('/agents/:id', async (req, res) => {
+  try {
+    const agent = await agentManager.getAgent(req.params.id);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    res.json(agent);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch agent' });
+  }
+});
+
+router.put('/agents/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    await agentManager.updateAgentStatus(req.params.id, status);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update agent status' });
+  }
+});
+
+// Task execution routes
+router.post('/tasks', async (req, res) => {
+  try {
+    const task = req.body;
+    const result = await enhancedBrain.executeTask(task);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to execute task' });
+  }
+});
+
+// Persona management routes
+router.get('/personas', async (req, res) => {
+  try {
+    const personas = await storage.getAllPersonas();
+    res.json(personas);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch personas' });
+  }
+});
+
+router.post('/personas', async (req, res) => {
+  try {
+    const persona = await storage.createPersona(req.body);
+    res.json(persona);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create persona' });
+  }
+});
+
+router.get('/personas/:id', async (req, res) => {
+  try {
+    const persona = await storage.getPersona(parseInt(req.params.id));
+    if (!persona) {
+      return res.status(404).json({ error: 'Persona not found' });
+    }
+    res.json(persona);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch persona' });
+  }
+});
+
+router.put('/personas/:id', async (req, res) => {
+  try {
+    const persona = await storage.updatePersona(parseInt(req.params.id), req.body);
+    res.json(persona);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update persona' });
+  }
+});
+
+router.delete('/personas/:id', async (req, res) => {
+  try {
+    await storage.deletePersona(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete persona' });
+  }
+});
+
+// Logs and monitoring routes
+router.get('/projects/:id/logs', async (req, res) => {
+  try {
+    const logs = await storage.getLogs(parseInt(req.params.id));
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+router.get('/projects/:id/messages', async (req, res) => {
+  try {
+    const messages = await storage.getMessages(parseInt(req.params.id));
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+router.get('/projects/:id/outputs', async (req, res) => {
+  try {
+    const outputs = await storage.getOutputs(parseInt(req.params.id));
+    res.json(outputs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch outputs' });
+  }
+});
+
+router.get('/projects/:id/sales', async (req, res) => {
+  try {
+    const sales = await storage.getSales(parseInt(req.params.id));
+    res.json(sales);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch sales' });
+  }
+});
+
+export default router;

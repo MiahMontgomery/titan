@@ -10,11 +10,9 @@ interface ProjectCardProps {
 export function ProjectCard({ project, isActive, onClick }: ProjectCardProps) {
   return (
     <motion.div
-      className={`
-        min-w-[280px] rounded-md p-4 bg-[#0e0e0e] border 
-        ${isActive ? 'border-[#01F9C6] glow-pulse' : 'border-[#4A4A4A]'}
-        cursor-pointer transition-all duration-300
-      `}
+      className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer hover:scale-105 ${
+        isActive ? 'border-[#3b82f6] glow-pulse' : 'border-[#4A4A4A]'
+      } ${isActive ? 'bg-[#1e293b]' : 'bg-[#0f172a] hover:bg-[#1e293b]'}`}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -27,7 +25,7 @@ export function ProjectCard({ project, isActive, onClick }: ProjectCardProps) {
         {project.prompt.length > 40 ? `${project.prompt.substring(0, 40)}...` : project.prompt}
       </p>
       <div className="flex items-center mt-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-[#01F9C6] mr-2"></span>
+        <span className="inline-block w-2 h-2 rounded-full bg-[#3b82f6] mr-2"></span>
         <span className="text-xs text-[#A9A9A9]">Active</span>
       </div>
     </motion.div>

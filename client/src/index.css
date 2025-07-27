@@ -146,17 +146,17 @@ input:focus, textarea:focus, select:focus {
   }
 
   body {
-    background: linear-gradient(to bottom, #0d0d0d, #121212);
+    background: linear-gradient(to bottom, #0f172a, #1e293b);
     color: hsl(var(--foreground));
     min-height: 100vh;
     font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-ß
+
   .glow-border {
-    box-shadow: 0 0 8px 0 rgba(1, 249, 198, 0.6);
-    border: 1px solid rgba(1, 249, 198, 0.8);
+    box-shadow: 0 0 8px 0 rgba(59, 130, 246, 0.6);
+    border: 1px solid rgba(59, 130, 246, 0.8);
   }
   
   .inactive-border {
@@ -169,13 +169,13 @@ input:focus, textarea:focus, select:focus {
   
   @keyframes pulse {
     0% {
-      box-shadow: 0 0 4px 0 rgba(1, 249, 198, 0.4);
+      box-shadow: 0 0 4px 0 rgba(59, 130, 246, 0.4);
     }
     50% {
-      box-shadow: 0 0 12px 0 rgba(1, 249, 198, 0.8);
+      box-shadow: 0 0 12px 0 rgba(59, 130, 246, 0.8);
     }
     100% {
-      box-shadow: 0 0 4px 0 rgba(1, 249, 198, 0.4);
+      box-shadow: 0 0 4px 0 rgba(59, 130, 246, 0.4);
     }
   }
   
@@ -213,29 +213,29 @@ input:focus, textarea:focus, select:focus {
   /* Focus styles */
   *:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #0ea5e9, 0 0 0 4px #ffffff;
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px #ffffff;
   }
 
   .dark *:focus-visible {
-    box-shadow: 0 0 0 2px #0ea5e9, 0 0 0 4px #0f172a;
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px #0f172a;
   }
 
   /* Selection styles */
   ::selection {
-    background-color: #e0f2fe;
-    color: #0c4a6e;
+    background-color: #dbeafe;
+    color: #1e40af;
   }
 
   .dark ::selection {
-    background-color: rgba(14, 165, 233, 0.3);
-    color: #e0f2fe;
+    background-color: rgba(59, 130, 246, 0.3);
+    color: #dbeafe;
   }
 }
 
 @layer components {
   /* Custom button styles */
   .btn-primary {
-    background-color: #0ea5e9;
+    background-color: #3b82f6;
     color: white;
     font-weight: 500;
     padding: 0.5rem 1rem;
@@ -246,16 +246,16 @@ input:focus, textarea:focus, select:focus {
   }
 
   .btn-primary:hover {
-    background-color: #0284c7;
+    background-color: #2563eb;
   }
 
   .btn-primary:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #0ea5e9, 0 0 0 4px #ffffff;
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px #ffffff;
   }
 
   .btn-secondary {
-    background-color: #d946ef;
+    background-color: #6366f1;
     color: white;
     font-weight: 500;
     padding: 0.5rem 1rem;
@@ -266,12 +266,12 @@ input:focus, textarea:focus, select:focus {
   }
 
   .btn-secondary:hover {
-    background-color: #c026d3;
+    background-color: #4f46e5;
   }
 
   .btn-secondary:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #d946ef, 0 0 0 4px #ffffff;
+    box-shadow: 0 0 0 2px #6366f1, 0 0 0 4px #ffffff;
   }
 
   .btn-outline {
@@ -339,8 +339,8 @@ input:focus, textarea:focus, select:focus {
 
   .input:focus {
     outline: none;
-    border-color: #0ea5e9;
-    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
   .dark .input {
@@ -394,13 +394,13 @@ input:focus, textarea:focus, select:focus {
   }
 
   .badge-info {
-    background-color: #e0f2fe;
-    color: #0c4a6e;
+    background-color: #dbeafe;
+    color: #1e40af;
   }
 
   .dark .badge-info {
-    background-color: rgba(14, 165, 233, 0.2);
-    color: #bae6fd;
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #bfdbfe;
   }
 
   /* Animation classes */
@@ -418,7 +418,7 @@ input:focus, textarea:focus, select:focus {
 
   /* Gradient backgrounds */
   .gradient-primary {
-    background: linear-gradient(to bottom right, #0ea5e9, #d946ef);
+    background: linear-gradient(to bottom right, #3b82f6, #6366f1);
   }
 
   .gradient-surface {
@@ -445,7 +445,7 @@ input:focus, textarea:focus, select:focus {
 @layer utilities {
   /* Text utilities */
   .text-gradient {
-    background: linear-gradient(to right, #0ea5e9, #d946ef);
+    background: linear-gradient(to right, #3b82f6, #6366f1);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

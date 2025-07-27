@@ -76,7 +76,7 @@ export function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjectModalPr
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Create New Project</h2>
               <button
-                className="text-[#A9A9A9] hover:text-white"
+                className="text-gray-400 hover:text-white transition-colors"
                 onClick={onClose}
                 aria-label="Close modal"
               >
