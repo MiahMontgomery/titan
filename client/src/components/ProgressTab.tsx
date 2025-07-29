@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Check, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressFeed } from "./ProgressFeed";
+import { RollbackPanel } from "./RollbackPanel";
 import type { Feature, Milestone, Goal } from "@shared/schema";
 
 interface FeatureWithChildren extends Feature {
@@ -50,43 +51,50 @@ export function ProgressTab({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Progress Feed Section */}
-      <div className="flex-1 min-h-0">
-        <ProgressFeed projectId={String(projectId)} />
+    <div className="h-full flex">
+      {/* Left Panel - Progress Feed */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 min-h-0">
+          <ProgressFeed projectId={String(projectId)} />
+        </div>
+        
+        {/* Features Section */}
+        <div className="border-t border-gray-700">
+          <div className="p-4 space-y-4 max-h-[300px] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Features</h3>
+              <span className="text-sm text-[#A9A9A9]">
+                {features.filter(f => f.completed).length} completed
+              </span>
+            </div>
+
+            {features.length === 0 ? (
+              <div className="text-center text-[#A9A9A9] py-8">
+                No features yet. Features will appear here as they're identified.
+              </div>
+            ) : (
+              <div className="features-list space-y-3">
+                {features.map((feature) => (
+                  <FeatureItem
+                    key={feature.id}
+                    feature={feature}
+                    isExpanded={expandedFeatures.includes(feature.id)}
+                    expandedMilestones={expandedMilestones}
+                    onToggleExpand={() => toggleFeatureExpand(feature.id)}
+                    onToggleMilestone={toggleMilestoneExpand}
+                    onMarkComplete={markFeatureComplete}
+                    onMarkGoalComplete={markGoalComplete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       
-      {/* Features Section */}
-      <div className="border-t border-gray-700">
-        <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Features</h3>
-            <span className="text-sm text-[#A9A9A9]">
-              {features.filter(f => f.completed).length} completed
-            </span>
-          </div>
-
-          {features.length === 0 ? (
-            <div className="text-center text-[#A9A9A9] py-8">
-              No features yet. Features will appear here as they're identified.
-            </div>
-          ) : (
-            <div className="features-list space-y-3">
-              {features.map((feature) => (
-                <FeatureItem
-                  key={feature.id}
-                  feature={feature}
-                  isExpanded={expandedFeatures.includes(feature.id)}
-                  expandedMilestones={expandedMilestones}
-                  onToggleExpand={() => toggleFeatureExpand(feature.id)}
-                  onToggleMilestone={toggleMilestoneExpand}
-                  onMarkComplete={markFeatureComplete}
-                  onMarkGoalComplete={markGoalComplete}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Right Panel - Rollback Panel */}
+      <div className="w-80 border-l border-gray-700">
+        <RollbackPanel projectId={String(projectId)} />
       </div>
     </div>
   );

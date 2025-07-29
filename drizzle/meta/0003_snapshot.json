@@ -1,6 +1,6 @@
 {
-  "id": "0947d470-351b-4226-a1aa-a5e5856ce6c5",
-  "prevId": "dfbd8310-9b19-42b6-bede-9809bb5ee76c",
+  "id": "0c170a19-e69c-4f57-9c00-b2dff2bbbd01",
+  "prevId": "0947d470-351b-4226-a1aa-a5e5856ce6c5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -10,20 +10,19 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "project_id": {
           "name": "project_id",
-          "type": "uuid",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
         "goal_id": {
           "name": "goal_id",
-          "type": "uuid",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },

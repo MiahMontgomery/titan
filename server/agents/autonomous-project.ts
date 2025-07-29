@@ -1,6 +1,7 @@
 import { storage } from '../storage';
 import { addTask, getNextTask, updateTaskStatus } from '../../data/queue';
 import { OpenRouter } from '../../services/openrouter';
+import { checkpointStorage } from '../storage/checkpoints';
 // Import the broadcast function from routes
 // This will be replaced with the actual broadcast function when the agent is used
 function broadcast(data: any) {
@@ -219,6 +220,15 @@ export class AutonomousProjectAgent {
           goalId,
           goalTitle
         })
+      });
+
+      // Create checkpoint for rollback
+      const checkpointSummary = `Generated ${codeResult.language} code for ${goalTitle}`;
+      await checkpointStorage.createCheckpoint({
+        projectId: parseInt(projectId),
+        goalId: parseInt(goalId),
+        summary: checkpointSummary,
+        codeDiff: codeResult.code
       });
 
       console.log(`✅ Code generated for goal: ${goalTitle}`);

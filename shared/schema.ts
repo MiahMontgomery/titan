@@ -198,3 +198,23 @@ export const insertPersonaSchema = z.object({
 
 export type Persona = typeof personas.$inferSelect;
 export type InsertPersona = z.infer<typeof insertPersonaSchema>;
+
+// Checkpoint schema
+export const checkpoints = pgTable("checkpoints", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id),
+  goalId: integer("goal_id").references(() => goals.id),
+  summary: text("summary").notNull(),
+  codeDiff: text("code_diff").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const insertCheckpointSchema = z.object({
+  projectId: z.number(),
+  goalId: z.number(),
+  summary: z.string(),
+  codeDiff: z.string(),
+});
+
+export type Checkpoint = typeof checkpoints.$inferSelect;
+export type InsertCheckpoint = z.infer<typeof insertCheckpointSchema>;

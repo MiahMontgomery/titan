@@ -34,6 +34,7 @@ import { researchEngine } from '../core/researcher';
 import { selfImprover } from '../core/self-improver';
 import { coordinator } from '../core/coordinator';
 import { agentManager } from '../core/manager';
+import { checkpointStorage } from './storage/checkpoints';
 
 interface Goal {
   title: string;
@@ -1532,6 +1533,70 @@ router.get('/projects/:id/sales', async (req, res) => {
     res.json(sales);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sales' });
+  }
+});
+
+// Checkpoint routes
+router.get('/projects/:id/checkpoints', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const checkpoints = await checkpointStorage.getCheckpointsByProject(projectId);
+    res.json(checkpoints);
+  } catch (error) {
+    console.error('Error fetching checkpoints:', error);
+    res.status(500).json({ error: 'Failed to fetch checkpoints' });
+  }
+});
+
+// Rollback endpoint
+router.post('/rollback', async (req, res) => {
+  try {
+    const { checkpointId, projectId } = req.body;
+    
+    if (!checkpointId || !projectId) {
+      return res.status(400).json({ error: 'Missing checkpointId or projectId' });
+    }
+
+    // Get the checkpoint
+    const checkpoint = await checkpointStorage.getCheckpoint(checkpointId);
+    if (!checkpoint) {
+      return res.status(404).json({ error: 'Checkpoint not found' });
+    }
+
+    // Verify the checkpoint belongs to the project
+    if (checkpoint.projectId !== projectId) {
+      return res.status(403).json({ error: 'Checkpoint does not belong to this project' });
+    }
+
+    // Update the output with the rolled back code
+    await storage.createOutput({
+      projectId,
+      type: 'code',
+      content: JSON.stringify({
+        code: checkpoint.codeDiff,
+        language: 'rolled-back',
+        filename: 'rolled-back-code',
+        description: `Rolled back to checkpoint: ${checkpoint.summary}`,
+        goalId: checkpoint.goalId,
+        goalTitle: `Goal ${checkpoint.goalId.slice(-8)}`
+      })
+    });
+
+    // Broadcast rollback event
+    broadcast({
+      type: 'rollback_completed',
+      projectId,
+      goalId: checkpoint.goalId,
+      checkpointId,
+      summary: checkpoint.summary
+    });
+
+    console.log(`✅ Rolled back to checkpoint: ${checkpointId}`);
+    res.json({ success: true, checkpoint });
+    
+  } catch (error) {
+    console.error('Error during rollback:', error);
+    res.status(500).json({ error: 'Failed to rollback checkpoint' });
   }
 });
 

@@ -15,6 +15,20 @@
       "when": 1750442631838,
       "tag": "0001_good_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1753832312597,
+      "tag": "0002_graceful_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1753832350186,
+      "tag": "0003_jittery_the_watchers",
+      "breakpoints": true
     }
   ]
 }
