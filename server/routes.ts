@@ -274,6 +274,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       res.status(201).json(projectWithFeatures);
+      
+      // Start autonomous execution after project creation
+      try {
+        const { autonomousProjectAgent } = await import('./agents/autonomous-project');
+        autonomousProjectAgent.startAutonomousExecution(project.id);
+        console.log(`🚀 Started autonomous execution for project: ${project.id}`);
+      } catch (error) {
+        console.error('❌ Error starting autonomous execution:', error);
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: errorMessage });
