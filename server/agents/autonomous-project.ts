@@ -1,9 +1,11 @@
 import { storage } from '../storage';
 import { addTask, getNextTask, updateTaskStatus } from '../../data/queue';
 import { OpenRouter } from '../../services/openrouter';
-// We'll create a simple broadcast function for now
+// Import the broadcast function from routes
+// This will be replaced with the actual broadcast function when the agent is used
 function broadcast(data: any) {
   console.log('📡 Broadcasting:', data);
+  // In the actual implementation, this will be the broadcast function from routes.ts
 }
 
 const openRouter = new OpenRouter();
@@ -24,6 +26,7 @@ export interface AutonomousTask {
 export class AutonomousProjectAgent {
   private isRunning = false;
   private currentProjectId?: string;
+  private broadcastFunction: ((data: any) => void) | null = null;
 
   async startAutonomousExecution(projectId: string): Promise<void> {
     console.log(`🚀 Starting autonomous execution for project: ${projectId}`);
@@ -65,12 +68,14 @@ export class AutonomousProjectAgent {
               });
               
               console.log(`✅ Enqueued goal: ${goal.title}`);
-              broadcast({
-                type: 'goal_enqueued',
-                projectId,
-                goalId: goal.id,
-                goalTitle: goal.title
-              });
+              if (this.broadcastFunction) {
+                this.broadcastFunction({
+                  type: 'goal_enqueued',
+                  projectId,
+                  goalId: goal.id,
+                  goalTitle: goal.title
+                });
+              }
             }
           }
         }
@@ -117,12 +122,14 @@ export class AutonomousProjectAgent {
     try {
       await updateTaskStatus(task.id, 'in_progress');
       
-      broadcast({
-        type: 'task_started',
-        projectId: task.projectId,
-        taskId: task.id,
-        goalTitle: task.metadata?.goalTitle
-      });
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'task_started',
+          projectId: task.projectId,
+          taskId: task.id,
+          goalTitle: task.metadata?.goalTitle
+        });
+      }
 
       const { goalId, goalTitle, type } = task.metadata;
       
@@ -132,24 +139,28 @@ export class AutonomousProjectAgent {
 
       await updateTaskStatus(task.id, 'completed');
       
-      broadcast({
-        type: 'task_completed',
-        projectId: task.projectId,
-        taskId: task.id,
-        goalTitle: task.metadata?.goalTitle
-      });
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'task_completed',
+          projectId: task.projectId,
+          taskId: task.id,
+          goalTitle: task.metadata?.goalTitle
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error processing task:', error);
       await updateTaskStatus(task.id, 'failed');
       
-      broadcast({
-        type: 'task_failed',
-        projectId: task.projectId,
-        taskId: task.id,
-        goalTitle: task.metadata?.goalTitle,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'task_failed',
+          projectId: task.projectId,
+          taskId: task.id,
+          goalTitle: task.metadata?.goalTitle,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     }
   }
 
@@ -212,14 +223,16 @@ export class AutonomousProjectAgent {
 
       console.log(`✅ Code generated for goal: ${goalTitle}`);
       
-      broadcast({
-        type: 'code_generated',
-        projectId,
-        goalId,
-        goalTitle,
-        filename: codeResult.filename,
-        language: codeResult.language
-      });
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'code_generated',
+          projectId,
+          goalId,
+          goalTitle,
+          filename: codeResult.filename,
+          language: codeResult.language
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error generating code:', error);
@@ -241,6 +254,10 @@ export class AutonomousProjectAgent {
     console.log('🛑 Stopping autonomous execution');
     this.isRunning = false;
     this.currentProjectId = undefined;
+  }
+
+  setBroadcastFunction(broadcastFn: (data: any) => void): void {
+    this.broadcastFunction = broadcastFn;
   }
 
   isExecuting(): boolean {

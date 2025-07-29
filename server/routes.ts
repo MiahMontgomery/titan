@@ -278,6 +278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start autonomous execution after project creation
       try {
         const { autonomousProjectAgent } = await import('./agents/autonomous-project');
+        // Pass the broadcast function to the agent
+        autonomousProjectAgent.setBroadcastFunction(broadcast);
         autonomousProjectAgent.startAutonomousExecution(project.id);
         console.log(`🚀 Started autonomous execution for project: ${project.id}`);
       } catch (error) {
