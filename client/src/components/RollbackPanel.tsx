@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Clock, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Clock, RotateCcw, AlertTriangle, Eye } from 'lucide-react';
+import { DiffViewer } from './DiffViewer';
 
 interface Checkpoint {
   id: string;
@@ -20,6 +21,7 @@ export function RollbackPanel({ projectId }: RollbackPanelProps) {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchCheckpoints();
@@ -70,6 +72,21 @@ export function RollbackPanel({ projectId }: RollbackPanelProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleCheckpointExpansion = (checkpointId: string) => {
+    const newExpanded = new Set(expandedCheckpoints);
+    if (newExpanded.has(checkpointId)) {
+      newExpanded.delete(checkpointId);
+    } else {
+      newExpanded.add(checkpointId);
+    }
+    setExpandedCheckpoints(newExpanded);
+  };
+
+  const handlePreviewRequested = (checkpointId: string) => {
+    // Broadcast preview requested event via WebSocket
+    console.log(`🔍 Preview requested for checkpoint: ${checkpointId}`);
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -123,66 +140,88 @@ export function RollbackPanel({ projectId }: RollbackPanelProps) {
               key={checkpoint.id}
               className="bg-gray-800/50 rounded-lg border border-gray-700 p-4"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-xs text-gray-400">
-                      {formatTimestamp(checkpoint.timestamp)}
-                    </span>
+                              <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-xs text-gray-400">
+                        {formatTimestamp(checkpoint.timestamp)}
+                      </span>
+                    </div>
+                    
+                    <h4 className="text-sm font-medium text-white mb-1">
+                      {getGoalTitle(checkpoint.goalId)}
+                    </h4>
+                    
+                    <p className="text-sm text-gray-300 mb-3">
+                      {checkpoint.summary}
+                    </p>
+                    
+                    <div className="text-xs text-gray-500">
+                      Code length: {checkpoint.codeDiff.length} characters
+                    </div>
                   </div>
                   
-                  <h4 className="text-sm font-medium text-white mb-1">
-                    {getGoalTitle(checkpoint.goalId)}
-                  </h4>
-                  
-                  <p className="text-sm text-gray-300 mb-3">
-                    {checkpoint.summary}
-                  </p>
-                  
-                  <div className="text-xs text-gray-500">
-                    Code length: {checkpoint.codeDiff.length} characters
-                  </div>
-                </div>
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                  <div className="flex items-center gap-2 ml-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="ml-4"
+                      onClick={() => toggleCheckpointExpansion(checkpoint.id)}
                       disabled={isLoading}
                     >
-                      <RotateCcw className="w-4 h-4 mr-1" />
-                      Revert
+                      <Eye className="w-4 h-4 mr-1" />
+                      {expandedCheckpoints.has(checkpoint.id) ? 'Hide' : 'Preview'}
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                        Confirm Rollback
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will revert the code for goal "{getGoalTitle(checkpoint.goalId)}" 
-                        to the state it was in at {formatTimestamp(checkpoint.timestamp)}.
-                        <br /><br />
-                        <strong>Warning:</strong> This action cannot be undone and will overwrite 
-                        any current code for this goal.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleRevert(checkpoint.id)}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        Revert to Checkpoint
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isLoading}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Revert
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                            Confirm Rollback
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will revert the code for goal "{getGoalTitle(checkpoint.goalId)}" 
+                            to the state it was in at {formatTimestamp(checkpoint.timestamp)}.
+                            <br /><br />
+                            <strong>Warning:</strong> This action cannot be undone and will overwrite 
+                            any current code for this goal.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRevert(checkpoint.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Revert to Checkpoint
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+                
+                {/* Diff Preview */}
+                {expandedCheckpoints.has(checkpoint.id) && (
+                  <div className="mt-4">
+                    <DiffViewer
+                      checkpointId={checkpoint.id}
+                      projectId={projectId}
+                      onPreviewRequested={() => handlePreviewRequested(checkpoint.id)}
+                    />
+                  </div>
+                )}
             </div>
           ))
         )}

@@ -118,6 +118,10 @@ export function ProgressFeed({ projectId }: ProgressFeedProps) {
         return `💻 Generated code for: "${data.goalTitle}" (${data.language})`;
       case 'goal_updated':
         return `🔄 Updated goal: "${data.goalTitle}"`;
+      case 'rollback_completed':
+        return `🔄 Rolled back to checkpoint: "${data.summary}"`;
+      case 'checkpoint_preview_requested':
+        return `👁️ Preview requested for checkpoint #${data.checkpointId}`;
       default:
         return data.message || `Event: ${data.type}`;
     }

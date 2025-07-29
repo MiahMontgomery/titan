@@ -1548,6 +1548,41 @@ router.get('/projects/:id/checkpoints', async (req, res) => {
   }
 });
 
+// Get checkpoint diff
+router.get('/checkpoints/:id/diff', async (req, res) => {
+  try {
+    const checkpointId = req.params.id;
+    
+    // Validate checkpoint ID
+    if (!checkpointId || isNaN(parseInt(checkpointId))) {
+      return res.status(400).json({ error: 'Invalid checkpoint ID' });
+    }
+
+    const checkpoint = await checkpointStorage.getCheckpoint(checkpointId);
+    if (!checkpoint) {
+      return res.status(404).json({ error: 'Checkpoint not found' });
+    }
+
+    // Broadcast preview requested event
+    broadcast({
+      type: 'checkpoint_preview_requested',
+      checkpointId,
+      projectId: checkpoint.projectId,
+      goalId: checkpoint.goalId
+    });
+
+    res.json({
+      codeDiff: checkpoint.codeDiff,
+      summary: checkpoint.summary,
+      timestamp: checkpoint.timestamp
+    });
+    
+  } catch (error) {
+    console.error('Error fetching checkpoint diff:', error);
+    res.status(500).json({ error: 'Failed to fetch checkpoint diff' });
+  }
+});
+
 // Rollback endpoint
 router.post('/rollback', async (req, res) => {
   try {
