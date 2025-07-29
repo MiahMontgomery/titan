@@ -122,6 +122,10 @@ export function ProgressFeed({ projectId }: ProgressFeedProps) {
         return `🔄 Rolled back to checkpoint: "${data.summary}"`;
       case 'checkpoint_preview_requested':
         return `👁️ Preview requested for checkpoint #${data.checkpointId}`;
+      case 'agent_session_resumed':
+        return `🧠 ${data.message || 'Agent session resumed'}`;
+      case 'agent_session_saved':
+        return `💾 Session saved for agent: ${data.agentId}`;
       default:
         return data.message || `Event: ${data.type}`;
     }

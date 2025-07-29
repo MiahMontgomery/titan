@@ -218,3 +218,29 @@ export const insertCheckpointSchema = z.object({
 
 export type Checkpoint = typeof checkpoints.$inferSelect;
 export type InsertCheckpoint = z.infer<typeof insertCheckpointSchema>;
+
+// Session Memory schema
+export const sessionMemories = pgTable("session_memories", {
+  id: serial("id").primaryKey(),
+  agentId: text("agent_id").notNull(),
+  projectId: integer("project_id").references(() => projects.id),
+  goalId: integer("goal_id").references(() => goals.id),
+  featureId: integer("feature_id").references(() => features.id),
+  milestoneId: integer("milestone_id").references(() => milestones.id),
+  taskSummary: text("task_summary"),
+  mode: text("mode").notNull(), // build/debug/optimize
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const insertSessionMemorySchema = z.object({
+  agentId: z.string(),
+  projectId: z.number().optional(),
+  goalId: z.number().optional(),
+  featureId: z.number().optional(),
+  milestoneId: z.number().optional(),
+  taskSummary: z.string().optional(),
+  mode: z.enum(['build', 'debug', 'optimize']),
+});
+
+export type SessionMemory = typeof sessionMemories.$inferSelect;
+export type InsertSessionMemory = z.infer<typeof insertSessionMemorySchema>;

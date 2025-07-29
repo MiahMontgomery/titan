@@ -2,6 +2,7 @@ import { storage } from '../storage';
 import { addTask, getNextTask, updateTaskStatus } from '../../data/queue';
 import { OpenRouter } from '../../services/openrouter';
 import { checkpointStorage } from '../storage/checkpoints';
+import { sessionMemoryStorage } from '../storage/sessionMemory';
 // Import the broadcast function from routes
 // This will be replaced with the actual broadcast function when the agent is used
 function broadcast(data: any) {
@@ -28,11 +29,15 @@ export class AutonomousProjectAgent {
   private isRunning = false;
   private currentProjectId?: string;
   private broadcastFunction: ((data: any) => void) | null = null;
+  private agentId = 'autonomous-project-agent';
 
   async startAutonomousExecution(projectId: string): Promise<void> {
     console.log(`🚀 Starting autonomous execution for project: ${projectId}`);
     this.currentProjectId = projectId;
     this.isRunning = true;
+
+    // Check for last session and resume if found
+    await this.checkAndResumeSession(projectId);
 
     // Enqueue all goals for this project
     await this.enqueueProjectGoals(projectId);
@@ -119,7 +124,7 @@ export class AutonomousProjectAgent {
     }
   }
 
-  private async processTask(task: any): Promise<void> {
+    private async processTask(task: any): Promise<void> {
     try {
       await updateTaskStatus(task.id, 'in_progress');
       
@@ -132,8 +137,18 @@ export class AutonomousProjectAgent {
         });
       }
 
-      const { goalId, goalTitle, type } = task.metadata;
-      
+      const { goalId, goalTitle, type, milestoneId, featureId } = task.metadata;
+
+      // Save session state before processing
+      await this.saveSession({
+        projectId: parseInt(task.projectId),
+        goalId: parseInt(goalId),
+        featureId: parseInt(featureId),
+        milestoneId: parseInt(milestoneId),
+        taskSummary: goalTitle,
+        mode: 'build'
+      });
+
       if (type === 'code_generation') {
         await this.generateCodeForGoal(task.projectId, goalId, goalTitle);
       }
@@ -264,6 +279,57 @@ export class AutonomousProjectAgent {
     console.log('🛑 Stopping autonomous execution');
     this.isRunning = false;
     this.currentProjectId = undefined;
+  }
+
+  private async checkAndResumeSession(projectId: string): Promise<void> {
+    try {
+      const lastSession = await sessionMemoryStorage.getLastSession(this.agentId);
+      
+      if (lastSession && lastSession.projectId === parseInt(projectId)) {
+        const resumeMessage = `🧠 Resuming from last session: Project ${lastSession.projectId} / Goal ${lastSession.goalId} / Task ${lastSession.taskSummary} / Mode: ${lastSession.mode}. Last touched at ${lastSession.timestamp}`;
+        
+        console.log(resumeMessage);
+        
+        if (this.broadcastFunction) {
+          this.broadcastFunction({
+            type: 'agent_session_resumed',
+            projectId,
+            agentId: this.agentId,
+            session: lastSession,
+            message: resumeMessage
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking session memory:', error);
+    }
+  }
+
+  private async saveSession(context: {
+    projectId?: number;
+    goalId?: number;
+    featureId?: number;
+    milestoneId?: number;
+    taskSummary?: string;
+    mode: 'build' | 'debug' | 'optimize';
+  }): Promise<void> {
+    try {
+      await sessionMemoryStorage.saveSession({
+        agentId: this.agentId,
+        ...context
+      });
+
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'agent_session_saved',
+          projectId: context.projectId?.toString(),
+          agentId: this.agentId,
+          session: context
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error saving session:', error);
+    }
   }
 
   setBroadcastFunction(broadcastFn: (data: any) => void): void {

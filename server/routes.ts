@@ -35,6 +35,7 @@ import { selfImprover } from '../core/self-improver';
 import { coordinator } from '../core/coordinator';
 import { agentManager } from '../core/manager';
 import { checkpointStorage } from './storage/checkpoints';
+import { sessionMemoryStorage } from './storage/sessionMemory';
 
 interface Goal {
   title: string;
@@ -1632,6 +1633,48 @@ router.post('/rollback', async (req, res) => {
   } catch (error) {
     console.error('Error during rollback:', error);
     res.status(500).json({ error: 'Failed to rollback checkpoint' });
+  }
+});
+
+// Session Memory routes
+router.get('/agents/:id/session', async (req, res) => {
+  try {
+    const agentId = req.params.id;
+    const session = await sessionMemoryStorage.getLastSession(agentId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'No session found for agent' });
+    }
+    
+    res.json(session);
+  } catch (error) {
+    console.error('Error fetching agent session:', error);
+    res.status(500).json({ error: 'Failed to fetch agent session' });
+  }
+});
+
+router.post('/agents/:id/session/resume', async (req, res) => {
+  try {
+    const agentId = req.params.id;
+    const session = await sessionMemoryStorage.getLastSession(agentId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'No session found for agent' });
+    }
+
+    // Broadcast resume event
+    broadcast({
+      type: 'agent_session_resumed',
+      projectId: session.projectId?.toString(),
+      agentId,
+      session,
+      message: `Manually resumed session for agent: ${agentId}`
+    });
+
+    res.json({ success: true, session });
+  } catch (error) {
+    console.error('Error resuming agent session:', error);
+    res.status(500).json({ error: 'Failed to resume agent session' });
   }
 });
 
