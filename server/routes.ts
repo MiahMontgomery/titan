@@ -39,6 +39,7 @@ import { sessionMemoryStorage } from './storage/sessionMemory';
 import { performanceMemoryStorage } from './storage/performanceMemory';
 import { trainingEngine } from './agents/training-engine';
 import { generateInitialTasks } from './ai/openrouter';
+import taskRoutes from './routes/tasks';
 
 interface Goal {
   title: string;
@@ -1789,6 +1790,9 @@ router.get('/projects/:id/tasks', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 });
+
+// Mount task execution routes
+router.use('/tasks', taskRoutes);
 
 // Training engine routes
 router.post('/training/scan', async (req, res) => {

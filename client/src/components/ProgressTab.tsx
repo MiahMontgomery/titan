@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Check, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -5,6 +6,7 @@ import { ProgressFeed } from "./ProgressFeed";
 import { RollbackPanel } from "./RollbackPanel";
 import { StatusHeader } from "./StatusHeader";
 import { AgentProfile } from "./AgentProfile";
+import { executeTask } from "@/lib/api";
 import type { Feature, Milestone, Goal } from "@shared/schema";
 
 interface FeatureWithChildren extends Feature {
@@ -16,6 +18,7 @@ interface FeatureWithChildren extends Feature {
 interface ProgressTabProps {
   projectId: number;
   features: FeatureWithChildren[];
+  tasks: any[];
   isLoading: boolean;
   featureCompletionPercentage: number;
   markFeatureComplete: (featureId: number) => Promise<void>;
@@ -29,6 +32,7 @@ interface ProgressTabProps {
 export function ProgressTab({
   projectId,
   features,
+  tasks,
   isLoading,
   featureCompletionPercentage,
   markFeatureComplete,
@@ -92,6 +96,30 @@ export function ProgressTab({
                       onMarkComplete={markFeatureComplete}
                       onMarkGoalComplete={markGoalComplete}
                     />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Tasks Section */}
+          <div className="border-t border-gray-700">
+            <div className="p-4 space-y-4 max-h-[300px] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Tasks</h3>
+                <span className="text-sm text-[#A9A9A9]">
+                  {tasks.filter(t => t.status === 'completed').length} completed
+                </span>
+              </div>
+
+              {tasks.length === 0 ? (
+                <div className="text-center text-[#A9A9A9] py-8">
+                  No tasks yet. Tasks will appear here as they're generated.
+                </div>
+              ) : (
+                <div className="tasks-list space-y-3">
+                  {tasks.map((task) => (
+                    <TaskItem key={task.id} task={task} />
                   ))}
                 </div>
               )}
@@ -311,5 +339,94 @@ function GoalItem({ goal, onMarkComplete }: GoalItemProps) {
         {goal.title}
       </span>
     </li>
+  );
+}
+
+interface TaskItemProps {
+  task: any;
+}
+
+function TaskItem({ task }: TaskItemProps) {
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState<any>(null);
+
+  const handleExecute = async () => {
+    try {
+      setIsExecuting(true);
+      const result = await executeTask(task.id);
+      setExecutionResult(result);
+    } catch (error) {
+      console.error('Error executing task:', error);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-500';
+      case 'in_progress':
+        return 'text-yellow-500';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Check size={16} />;
+      case 'in_progress':
+        return <Circle size={16} />;
+      default:
+        return <Circle size={16} />;
+    }
+  };
+
+  return (
+    <div className="task-item p-3 bg-[#1a1a1a] rounded-md border border-[#333333]">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`${getStatusColor(task.status)}`}>
+              {getStatusIcon(task.status)}
+            </span>
+            <h4 className="text-sm font-medium text-white">
+              {task.title}
+            </h4>
+          </div>
+          
+          {task.description && (
+            <p className="text-xs text-[#A9A9A9] mb-3">
+              {task.description}
+            </p>
+          )}
+          
+          {executionResult && (
+            <div className="mt-3 p-2 bg-[#0a0a0a] rounded border border-[#333333]">
+              <div className="text-xs text-[#A9A9A9] mb-1">Execution Result:</div>
+              <pre className="text-xs text-green-400 overflow-x-auto">
+                {executionResult.result?.output || 'No output'}
+              </pre>
+            </div>
+          )}
+        </div>
+        
+        <button
+          onClick={handleExecute}
+          disabled={isExecuting || task.status === 'completed'}
+          className={`px-3 py-1 text-xs rounded transition-colors ${
+            isExecuting
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : task.status === 'completed'
+              ? 'bg-green-600 text-white cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {isExecuting ? 'Executing...' : task.status === 'completed' ? 'Completed' : 'Execute'}
+        </button>
+      </div>
+    </div>
   );
 }

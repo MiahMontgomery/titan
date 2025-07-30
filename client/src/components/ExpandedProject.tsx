@@ -19,6 +19,7 @@ export function ExpandedProject({ project, onClose }: ExpandedProjectProps) {
   const [activeTab, setActiveTab] = useState<string>("progress");
   const {
     features,
+    tasks,
     isLoading,
     featureCompletionPercentage,
     markFeatureComplete,
@@ -36,6 +37,7 @@ export function ExpandedProject({ project, onClose }: ExpandedProjectProps) {
           <ProgressTab
             projectId={project.id}
             features={features}
+            tasks={tasks}
             isLoading={isLoading}
             featureCompletionPercentage={featureCompletionPercentage}
             markFeatureComplete={markFeatureComplete}

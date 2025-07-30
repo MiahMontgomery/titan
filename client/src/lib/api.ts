@@ -142,6 +142,16 @@ export async function getTasksByProject(projectId: number): Promise<any[]> {
   return response.json();
 }
 
+export async function executeTask(taskId: number): Promise<any> {
+  const response = await apiRequest("POST", `/api/tasks/${taskId}/execute`);
+  return response.json();
+}
+
+export async function getTaskHistory(taskId: number): Promise<any[]> {
+  const response = await apiRequest("GET", `/api/tasks/${taskId}/history`);
+  return response.json();
+}
+
 export async function getProjectPerformance(projectId: number): Promise<{
   messages: number;
   content: number;
