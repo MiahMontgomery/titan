@@ -126,6 +126,8 @@ export function ProgressFeed({ projectId }: ProgressFeedProps) {
         return `🧠 ${data.message || 'Agent session resumed'}`;
       case 'agent_session_saved':
         return `💾 Session saved for agent: ${data.agentId}`;
+      case 'agent_training_triggered':
+        return `🎯 Training triggered for ${data.skillTag} (${data.currentAccuracy}% → ${data.targetAccuracy}%)`;
       default:
         return data.message || `Event: ${data.type}`;
     }

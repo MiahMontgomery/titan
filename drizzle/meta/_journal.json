@@ -36,6 +36,13 @@
       "when": 1753833468087,
       "tag": "0004_minor_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1753833930377,
+      "tag": "0005_normal_sister_grimm",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressFeed } from "./ProgressFeed";
 import { RollbackPanel } from "./RollbackPanel";
 import { StatusHeader } from "./StatusHeader";
+import { AgentProfile } from "./AgentProfile";
 import type { Feature, Milestone, Goal } from "@shared/schema";
 
 interface FeatureWithChildren extends Feature {
@@ -98,9 +99,14 @@ export function ProgressTab({
           </div>
         </div>
         
-        {/* Right Panel - Rollback Panel */}
-        <div className="w-80 border-l border-gray-700">
-          <RollbackPanel projectId={String(projectId)} />
+        {/* Right Panel - Rollback Panel and Agent Profile */}
+        <div className="w-80 border-l border-gray-700 flex flex-col">
+          <div className="flex-1">
+            <RollbackPanel projectId={String(projectId)} />
+          </div>
+          <div className="border-t border-gray-700">
+            <AgentProfile agentId="autonomous-project-agent" />
+          </div>
         </div>
       </div>
     </div>

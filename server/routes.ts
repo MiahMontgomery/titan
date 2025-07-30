@@ -36,6 +36,8 @@ import { coordinator } from '../core/coordinator';
 import { agentManager } from '../core/manager';
 import { checkpointStorage } from './storage/checkpoints';
 import { sessionMemoryStorage } from './storage/sessionMemory';
+import { performanceMemoryStorage } from './storage/performanceMemory';
+import { trainingEngine } from './agents/training-engine';
 
 interface Goal {
   title: string;
@@ -1675,6 +1677,94 @@ router.post('/agents/:id/session/resume', async (req, res) => {
   } catch (error) {
     console.error('Error resuming agent session:', error);
     res.status(500).json({ error: 'Failed to resume agent session' });
+  }
+});
+
+// Performance Memory routes
+router.get('/agents/:id/performance', async (req, res) => {
+  try {
+    const agentId = req.params.id;
+    const performanceStats = await performanceMemoryStorage.summarizePerformance(agentId);
+    res.json(performanceStats);
+  } catch (error) {
+    console.error('Error fetching agent performance:', error);
+    res.status(500).json({ error: 'Failed to fetch agent performance' });
+  }
+});
+
+router.get('/agents/:id/performance/:skillTag', async (req, res) => {
+  try {
+    const { id: agentId, skillTag } = req.params;
+    const skillStats = await performanceMemoryStorage.getStatsBySkill(agentId, skillTag);
+    res.json(skillStats);
+  } catch (error) {
+    console.error('Error fetching skill performance:', error);
+    res.status(500).json({ error: 'Failed to fetch skill performance' });
+  }
+});
+
+router.post('/agents/:id/retrain/:skillTag', async (req, res) => {
+  try {
+    const { id: agentId, skillTag } = req.params;
+    
+    // Get current skill stats
+    const skillStats = await performanceMemoryStorage.getStatsBySkill(agentId, skillTag);
+    
+    if (skillStats.totalAttempts === 0) {
+      return res.status(404).json({ error: 'No performance data for this skill' });
+    }
+
+    // Generate training goal
+    const trainingGoal = await trainingEngine.generateTrainingGoal(skillTag, skillStats.recentFails);
+    
+    if (!trainingGoal) {
+      return res.status(500).json({ error: 'Failed to generate training goal' });
+    }
+
+    // Add training task to queue
+    await addTask({
+      type: 'agent_training',
+      projectId: 'training-project',
+      priority: 2,
+      metadata: {
+        agentId,
+        skillTag,
+        trainingGoal,
+        targetAccuracy: 85,
+        currentAccuracy: skillStats.accuracy
+      }
+    });
+
+    // Broadcast training event
+    broadcast({
+      type: 'agent_training_triggered',
+      agentId,
+      skillTag,
+      currentAccuracy: skillStats.accuracy,
+      targetAccuracy: 85
+    });
+
+    res.json({ 
+      success: true, 
+      trainingGoal,
+      currentAccuracy: skillStats.accuracy,
+      targetAccuracy: 85
+    });
+    
+  } catch (error) {
+    console.error('Error triggering retraining:', error);
+    res.status(500).json({ error: 'Failed to trigger retraining' });
+  }
+});
+
+// Training engine routes
+router.post('/training/scan', async (req, res) => {
+  try {
+    await trainingEngine.scanForLowPerformingSkills();
+    res.json({ success: true, message: 'Training scan completed' });
+  } catch (error) {
+    console.error('Error running training scan:', error);
+    res.status(500).json({ error: 'Failed to run training scan' });
   }
 });
 

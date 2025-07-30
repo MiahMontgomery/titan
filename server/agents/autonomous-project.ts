@@ -3,6 +3,7 @@ import { addTask, getNextTask, updateTaskStatus } from '../../data/queue';
 import { OpenRouter } from '../../services/openrouter';
 import { checkpointStorage } from '../storage/checkpoints';
 import { sessionMemoryStorage } from '../storage/sessionMemory';
+import { performanceMemoryStorage } from '../storage/performanceMemory';
 // Import the broadcast function from routes
 // This will be replaced with the actual broadcast function when the agent is used
 function broadcast(data: any) {
@@ -139,6 +140,9 @@ export class AutonomousProjectAgent {
 
       const { goalId, goalTitle, type, milestoneId, featureId } = task.metadata;
 
+      // Infer skill tag for performance tracking
+      const skillTag = await this.inferSkillTag(goalTitle);
+
       // Save session state before processing
       await this.saveSession({
         projectId: parseInt(task.projectId),
@@ -149,18 +153,37 @@ export class AutonomousProjectAgent {
         mode: 'build'
       });
 
-      if (type === 'code_generation') {
-        await this.generateCodeForGoal(task.projectId, goalId, goalTitle);
-      }
+      let success = false;
+      let failReason = '';
 
-      await updateTaskStatus(task.id, 'completed');
-      
-      if (this.broadcastFunction) {
-        this.broadcastFunction({
-          type: 'task_completed',
-          projectId: task.projectId,
-          taskId: task.id,
-          goalTitle: task.metadata?.goalTitle
+      try {
+        if (type === 'code_generation') {
+          await this.generateCodeForGoal(task.projectId, goalId, goalTitle);
+        }
+
+        await updateTaskStatus(task.id, 'completed');
+        success = true;
+        
+        if (this.broadcastFunction) {
+          this.broadcastFunction({
+            type: 'task_completed',
+            projectId: task.projectId,
+            taskId: task.id,
+            goalTitle: task.metadata?.goalTitle
+          });
+        }
+      } catch (error) {
+        failReason = error instanceof Error ? error.message : 'Unknown error';
+        throw error;
+      } finally {
+        // Record performance attempt
+        await performanceMemoryStorage.recordAttempt({
+          agentId: this.agentId,
+          skillTag,
+          taskType: type,
+          success,
+          failReason: success ? undefined : failReason,
+          notes: `Task: ${goalTitle}, Project: ${task.projectId}`
         });
       }
 
@@ -177,6 +200,27 @@ export class AutonomousProjectAgent {
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
+    }
+  }
+
+  private async inferSkillTag(goalTitle: string, goalDescription?: string): Promise<string> {
+    // Simple skill inference based on goal title and description
+    const text = `${goalTitle} ${goalDescription || ''}`.toLowerCase();
+    
+    if (text.includes('code') || text.includes('generate') || text.includes('implement')) {
+      return 'code-generation';
+    } else if (text.includes('test') || text.includes('validate')) {
+      return 'testing';
+    } else if (text.includes('deploy') || text.includes('build')) {
+      return 'deployment';
+    } else if (text.includes('parse') || text.includes('diff')) {
+      return 'diff-parsing';
+    } else if (text.includes('queue') || text.includes('route')) {
+      return 'queue-routing';
+    } else if (text.includes('schema') || text.includes('validate')) {
+      return 'schema-validation';
+    } else {
+      return 'general-task';
     }
   }
 

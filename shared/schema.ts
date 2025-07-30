@@ -244,3 +244,27 @@ export const insertSessionMemorySchema = z.object({
 
 export type SessionMemory = typeof sessionMemories.$inferSelect;
 export type InsertSessionMemory = z.infer<typeof insertSessionMemorySchema>;
+
+// Performance Memory schema
+export const performanceMemories = pgTable("performance_memories", {
+  id: serial("id").primaryKey(),
+  agentId: text("agent_id").notNull(),
+  skillTag: text("skill_tag").notNull(),
+  taskType: text("task_type").notNull(),
+  success: boolean("success").notNull(),
+  failReason: text("fail_reason"),
+  notes: text("notes"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const insertPerformanceMemorySchema = z.object({
+  agentId: z.string(),
+  skillTag: z.string(),
+  taskType: z.string(),
+  success: z.boolean(),
+  failReason: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type PerformanceMemory = typeof performanceMemories.$inferSelect;
+export type InsertPerformanceMemory = z.infer<typeof insertPerformanceMemorySchema>;
