@@ -136,6 +136,12 @@ export async function getSalesByProject(projectId: number): Promise<Sale[]> {
   return response.json();
 }
 
+// Task API calls
+export async function getTasksByProject(projectId: number): Promise<any[]> {
+  const response = await apiRequest("GET", `/api/projects/${projectId}/tasks`);
+  return response.json();
+}
+
 export async function getProjectPerformance(projectId: number): Promise<{
   messages: number;
   content: number;

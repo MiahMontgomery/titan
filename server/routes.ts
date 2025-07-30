@@ -38,6 +38,7 @@ import { checkpointStorage } from './storage/checkpoints';
 import { sessionMemoryStorage } from './storage/sessionMemory';
 import { performanceMemoryStorage } from './storage/performanceMemory';
 import { trainingEngine } from './agents/training-engine';
+import { generateInitialTasks } from './ai/openrouter';
 
 interface Goal {
   title: string;
@@ -258,7 +259,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // 4. Return the created project with its features
+      // 4. Generate initial tasks using AI
+      try {
+        const taskSuggestions = await generateInitialTasks(prompt);
+        
+        // Save generated tasks to database
+        for (const taskSuggestion of taskSuggestions) {
+          await storage.createTask({
+            projectId: project.id,
+            title: taskSuggestion.title,
+            description: taskSuggestion.description,
+            status: taskSuggestion.status
+          });
+        }
+        
+        console.log(`✅ Generated ${taskSuggestions.length} initial tasks for project: ${project.id}`);
+      } catch (taskError) {
+        console.error('❌ Error generating initial tasks:', taskError);
+        // Continue with project creation even if task generation fails
+      }
+
+      // 5. Return the created project with its features
       const features = await storage.getFeaturesByProject(project.id);
       const projectWithFeatures = {
         ...project,
@@ -1754,6 +1775,18 @@ router.post('/agents/:id/retrain/:skillTag', async (req, res) => {
   } catch (error) {
     console.error('Error triggering retraining:', error);
     res.status(500).json({ error: 'Failed to trigger retraining' });
+  }
+});
+
+// Task routes
+router.get('/projects/:id/tasks', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const tasks = await storage.getTasksByProject(projectId);
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 });
 

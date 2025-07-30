@@ -268,3 +268,44 @@ export const insertPerformanceMemorySchema = z.object({
 
 export type PerformanceMemory = typeof performanceMemories.$inferSelect;
 export type InsertPerformanceMemory = z.infer<typeof insertPerformanceMemorySchema>;
+
+// Skill Performance Log schema
+export const skillPerformanceLogs = pgTable("skill_performance_logs", {
+  id: serial("id").primaryKey(),
+  agentId: text("agent_id").notNull(),
+  skillTag: text("skill_tag").notNull(),
+  success: boolean("success").notNull(),
+  feedback: text("feedback").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const insertSkillPerformanceLogSchema = z.object({
+  agentId: z.string(),
+  skillTag: z.string(),
+  success: z.boolean(),
+  feedback: z.string().max(150),
+});
+
+export type SkillPerformanceLog = typeof skillPerformanceLogs.$inferSelect;
+export type InsertSkillPerformanceLog = z.infer<typeof insertSkillPerformanceLogSchema>;
+
+// Tasks schema
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTaskSchema = z.object({
+  projectId: z.number(),
+  title: z.string(),
+  description: z.string().optional(),
+  status: z.enum(['pending', 'in_progress', 'completed']).default('pending'),
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;

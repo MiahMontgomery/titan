@@ -11,7 +11,7 @@ console.log('Storage.ts - Environment check:', {
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import { 
   users, 
@@ -24,6 +24,7 @@ import {
   outputs,
   sales,
   personas,
+  tasks,
   type User, 
   type InsertUser,
   type Project,
@@ -43,7 +44,9 @@ import {
   type Sale,
   type InsertSale,
   type Persona,
-  type InsertPersona
+  type InsertPersona,
+  type Task,
+  type InsertTask
 } from "@shared/schema";
 
 // modify the interface with any CRUD methods
@@ -105,6 +108,12 @@ export interface IStorage {
   getPersona(id: string): Promise<Persona | undefined>;
   updatePersona(id: string, persona: InsertPersona): Promise<Persona>;
   deletePersona(id: string): Promise<void>;
+  
+  // Task methods
+  createTask(task: InsertTask): Promise<Task>;
+  getTasksByProject(projectId: string): Promise<Task[]>;
+  updateTaskStatus(id: string, status: 'pending' | 'in_progress' | 'completed'): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<void>;
 }
 
 if (!process.env.DATABASE_URL) {
@@ -306,6 +315,33 @@ export class PostgresStorage implements IStorage {
 
   async deletePersona(id: string): Promise<void> {
     await db.delete(personas).where(eq(personas.id, id));
+  }
+
+  // Task methods
+  async createTask(task: InsertTask): Promise<Task> {
+    const result = await db.insert(tasks).values(task).returning();
+    return result[0];
+  }
+
+  async getTasksByProject(projectId: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.projectId, parseInt(projectId)))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async updateTaskStatus(id: string, status: 'pending' | 'in_progress' | 'completed'): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(tasks.id, parseInt(id)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    await db.delete(tasks).where(eq(tasks.id, parseInt(id)));
   }
 }
 

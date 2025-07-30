@@ -1,8 +1,8 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { performanceMemories } from '@shared/schema';
-import type { PerformanceMemory, InsertPerformanceMemory } from '@shared/schema';
+import { performanceMemories, skillPerformanceLogs } from '@shared/schema';
+import type { PerformanceMemory, InsertPerformanceMemory, SkillPerformanceLog, InsertSkillPerformanceLog } from '@shared/schema';
 
 // Database connection
 const pool = new Pool({
@@ -29,6 +29,9 @@ export interface IPerformanceMemoryStorage {
   getLowPerformingSkills(agentId: string, threshold?: number): Promise<ISkillStats[]>;
   getAgentMemorySummary(agentId: string): Promise<string>;
   generateBehaviorInstructions(agentId: string, goalTitle: string): Promise<string>;
+  logSkillPerformance(log: InsertSkillPerformanceLog): Promise<SkillPerformanceLog>;
+  getRecentSkillLogs(agentId: string, skillTag: string, limit?: number): Promise<SkillPerformanceLog[]>;
+  checkSkillRetrainingNeeded(agentId: string, skillTag: string): Promise<boolean>;
 }
 
 export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {

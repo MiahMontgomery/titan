@@ -5,6 +5,7 @@ import {
   getFeaturesByProject, 
   getMilestonesByFeature, 
   getGoalsByMilestone,
+  getTasksByProject,
   completeFeature,
   completeGoal
 } from "@/lib/api";
@@ -20,6 +21,7 @@ interface FeatureWithChildren extends Feature {
 interface ProjectDataResult {
   project: any;
   features: FeatureWithChildren[];
+  tasks: any[];
   isLoading: boolean;
   featureCompletionPercentage: number;
   markFeatureComplete: (featureId: number) => Promise<void>;
@@ -70,6 +72,12 @@ export function useProjectData(projectId: number | null): ProjectDataResult {
   const { data: goals = [], isLoading: isGoalsLoading } = useQuery<Goal[]>({
     queryKey: ['/api/milestones', milestoneIds, 'goals'],
     enabled: milestoneIds.length > 0,
+  });
+
+  // Get tasks for the project
+  const { data: tasks = [], isLoading: isTasksLoading } = useQuery<any[]>({
+    queryKey: ['/api/projects', projectId, 'tasks'],
+    enabled: !!projectId,
   });
 
   const goalsMap: Record<number, Goal[]> = {};
@@ -174,11 +182,12 @@ export function useProjectData(projectId: number | null): ProjectDataResult {
     ? Math.round((completedFeatures / features.length) * 100) 
     : 0;
 
-  const isLoading = isProjectLoading || isFeaturesLoading || isMilestonesLoading || isGoalsLoading;
+  const isLoading = isProjectLoading || isFeaturesLoading || isMilestonesLoading || isGoalsLoading || isTasksLoading;
 
   return {
     project,
     features: featuresWithChildren,
+    tasks,
     isLoading,
     featureCompletionPercentage,
     markFeatureComplete,
