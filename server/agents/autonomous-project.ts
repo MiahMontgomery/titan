@@ -241,6 +241,9 @@ export class AutonomousProjectAgent {
       // Get agent memory summary for prompt injection
       const memorySummary = await performanceMemoryStorage.getAgentMemorySummary(this.agentId);
       
+      // Get behavior instructions based on agent performance
+      const behaviorInstructions = await performanceMemoryStorage.generateBehaviorInstructions(this.agentId, goalTitle);
+      
       let systemPrompt = `You are an expert software developer. Generate working code for the given goal. Respond with ONLY valid JSON in this format:
 {
   "code": "the actual code content",
@@ -252,6 +255,11 @@ export class AutonomousProjectAgent {
       // Inject performance memory if available
       if (memorySummary) {
         systemPrompt += `\n\n${memorySummary}`;
+      }
+
+      // Inject behavior shaping instructions
+      if (behaviorInstructions) {
+        systemPrompt += `\n\nBehavior Instructions:\n${behaviorInstructions}`;
       }
       
       // Generate code using AI

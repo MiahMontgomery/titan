@@ -28,6 +28,7 @@ export interface IPerformanceMemoryStorage {
   summarizePerformance(agentId: string): Promise<ISkillStats[]>;
   getLowPerformingSkills(agentId: string, threshold?: number): Promise<ISkillStats[]>;
   getAgentMemorySummary(agentId: string): Promise<string>;
+  generateBehaviorInstructions(agentId: string, goalTitle: string): Promise<string>;
 }
 
 export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {
@@ -188,6 +189,78 @@ export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {
     } catch (error) {
       console.error('❌ Error getting agent memory summary:', error);
       return '';
+    }
+  }
+
+  async generateBehaviorInstructions(agentId: string, goalTitle: string): Promise<string> {
+    try {
+      const allStats = await this.summarizePerformance(agentId);
+      
+      if (allStats.length === 0) {
+        return 'If skill match uncertain, default to safe verbose mode.';
+      }
+
+      // Infer skill tags from goal title
+      const goalText = goalTitle.toLowerCase();
+      const relevantSkills: string[] = [];
+      
+      if (goalText.includes('code') || goalText.includes('generate') || goalText.includes('implement')) {
+        relevantSkills.push('code-generation');
+      }
+      if (goalText.includes('test') || goalText.includes('validate')) {
+        relevantSkills.push('testing');
+      }
+      if (goalText.includes('deploy') || goalText.includes('build')) {
+        relevantSkills.push('deployment');
+      }
+      if (goalText.includes('parse') || goalText.includes('diff')) {
+        relevantSkills.push('diff-parsing');
+      }
+      if (goalText.includes('queue') || goalText.includes('route')) {
+        relevantSkills.push('queue-routing');
+      }
+      if (goalText.includes('schema') || goalText.includes('validate')) {
+        relevantSkills.push('schema-validation');
+      }
+
+      // If no specific skills matched, use top 3 most-used skills
+      if (relevantSkills.length === 0) {
+        relevantSkills.push(...allStats.slice(0, 3).map(skill => skill.skillTag));
+      }
+
+      const instructions: string[] = [];
+      let instructionCount = 0;
+
+      for (const skillTag of relevantSkills) {
+        if (instructionCount >= 3) break; // Limit to 3 instructions
+
+        const skillStats = allStats.find(stats => stats.skillTag === skillTag);
+        if (!skillStats) continue;
+
+        if (skillStats.accuracy < 70) {
+          // Underperforming skill - add cautious instruction
+          instructions.push(`If task involves Skill[${skillTag}], be cautious with implementation and provide verbose explanations with fallback examples.`);
+          instructionCount++;
+        } else if (skillStats.accuracy > 90) {
+          // High-performing skill - allow concise responses
+          instructions.push(`If using Skill[${skillTag}] (${skillStats.accuracy.toFixed(0)}% accuracy), use compact code patterns and concise explanations.`);
+          instructionCount++;
+        } else {
+          // Moderate performance - balanced approach
+          instructions.push(`If using Skill[${skillTag}] (${skillStats.accuracy.toFixed(0)}% accuracy), provide clear explanations with moderate detail.`);
+          instructionCount++;
+        }
+      }
+
+      // Add fallback instruction if no specific instructions were generated
+      if (instructions.length === 0) {
+        instructions.push('If skill match uncertain, default to safe verbose mode.');
+      }
+
+      return instructions.join('\n');
+    } catch (error) {
+      console.error('❌ Error generating behavior instructions:', error);
+      return 'If skill match uncertain, default to safe verbose mode.';
     }
   }
 }
