@@ -238,19 +238,29 @@ export class AutonomousProjectAgent {
       // Build context for AI
       const context = this.buildProjectContext(project, features);
       
+      // Get agent memory summary for prompt injection
+      const memorySummary = await performanceMemoryStorage.getAgentMemorySummary(this.agentId);
+      
+      let systemPrompt = `You are an expert software developer. Generate working code for the given goal. Respond with ONLY valid JSON in this format:
+{
+  "code": "the actual code content",
+  "language": "javascript|python|html|css|etc",
+  "filename": "suggested filename",
+  "description": "brief description of what this code does"
+}`;
+
+      // Inject performance memory if available
+      if (memorySummary) {
+        systemPrompt += `\n\n${memorySummary}`;
+      }
+      
       // Generate code using AI
       const aiResponse = await openRouter.chat({
         model: 'gpt-4-turbo',
         messages: [
           {
             role: 'system',
-            content: `You are an expert software developer. Generate working code for the given goal. Respond with ONLY valid JSON in this format:
-{
-  "code": "the actual code content",
-  "language": "javascript|python|html|css|etc",
-  "filename": "suggested filename",
-  "description": "brief description of what this code does"
-}`
+            content: systemPrompt
           },
           {
             role: 'user',

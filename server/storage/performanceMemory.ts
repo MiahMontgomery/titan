@@ -27,6 +27,7 @@ export interface IPerformanceMemoryStorage {
   getRecentFails(agentId: string, skillTag: string, limit?: number): Promise<PerformanceMemory[]>;
   summarizePerformance(agentId: string): Promise<ISkillStats[]>;
   getLowPerformingSkills(agentId: string, threshold?: number): Promise<ISkillStats[]>;
+  getAgentMemorySummary(agentId: string): Promise<string>;
 }
 
 export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {
@@ -56,8 +57,8 @@ export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {
       const totalAttempts = attempts.length;
       const successfulAttempts = attempts.filter(a => a.success).length;
       const accuracy = totalAttempts > 0 ? (successfulAttempts / totalAttempts) * 100 : 0;
-      const lastUsed = attempts[0]?.timestamp || new Date().toISOString();
-      const lastFailReason = attempts.find(a => !a.success)?.failReason;
+      const lastUsed = attempts[0]?.timestamp?.toISOString() || new Date().toISOString();
+      const lastFailReason = attempts.find(a => !a.success)?.failReason || undefined;
       const recentFails = attempts
         .filter(a => !a.success)
         .slice(0, 5)
@@ -130,6 +131,63 @@ export class PerformanceMemoryStorage implements IPerformanceMemoryStorage {
     } catch (error) {
       console.error('❌ Error getting low performing skills:', error);
       throw error;
+    }
+  }
+
+  async getAgentMemorySummary(agentId: string): Promise<string> {
+    try {
+      const allStats = await this.summarizePerformance(agentId);
+      
+      if (allStats.length === 0) {
+        return '';
+      }
+
+      // Sort by most recent usage (assuming timestamp is available)
+      const sortedStats = allStats.sort((a, b) => 
+        new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+      );
+
+      // Get top 3 most-used skills
+      const topSkills = sortedStats.slice(0, 3);
+      
+      // Get underperforming skills (<70% accuracy)
+      const underperformingSkills = allStats.filter(stats => stats.accuracy < 70);
+      
+      // Get most recent failure reason
+      const recentFailure = allStats
+        .filter(stats => stats.lastFailReason)
+        .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())[0];
+
+      let memoryString = 'PerformanceMemory: ';
+      
+      // Add top skills
+      const skillStrings = topSkills.map(skill => 
+        `Skill[${skill.skillTag}]: ${skill.accuracy.toFixed(0)}% (${skill.successfulAttempts}/${skill.totalAttempts})`
+      );
+      memoryString += skillStrings.join('; ');
+      
+      // Add underperforming skills with retraining recommendation
+      if (underperformingSkills.length > 0) {
+        const underperformingStrings = underperformingSkills.map(skill =>
+          `Skill[${skill.skillTag}]: ${skill.accuracy.toFixed(0)}% (${skill.successfulAttempts}/${skill.totalAttempts}) — retraining recommended`
+        );
+        memoryString += '; ' + underperformingStrings.join('; ');
+      }
+      
+      // Add last failure reason
+      if (recentFailure?.lastFailReason) {
+        memoryString += `; Last Failure: ${recentFailure.lastFailReason}`;
+      }
+
+      // Limit to 1000 characters
+      if (memoryString.length > 1000) {
+        memoryString = memoryString.substring(0, 997) + '...';
+      }
+
+      return memoryString;
+    } catch (error) {
+      console.error('❌ Error getting agent memory summary:', error);
+      return '';
     }
   }
 }
