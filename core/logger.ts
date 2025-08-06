@@ -1,5 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface LogEntry {
   timestamp: string;
@@ -8,6 +13,8 @@ interface LogEntry {
   personaId?: string;
   taskId?: string;
   result: any;
+  // Allow additional properties for flexible logging
+  [key: string]: any;
 }
 
 const LOGS_DIR = path.join(__dirname, '../data/logs');
@@ -34,7 +41,11 @@ export async function logAction(
     projectId?: string;
     personaId?: string;
     taskId?: string;
-    result: any;
+    result?: any;
+    error?: string;
+    stack?: string;
+    // Allow any additional properties for flexible logging
+    [key: string]: any;
   }
 ): Promise<string> {
   await ensureLogsDirectory();
@@ -46,7 +57,9 @@ export async function logAction(
     projectId: data.projectId,
     personaId: data.personaId,
     taskId: data.taskId,
-    result: data.result
+    result: data.result,
+    // Include all additional data properties
+    ...data
   };
   
   await fs.writeFile(logPath, JSON.stringify(entry, null, 2));

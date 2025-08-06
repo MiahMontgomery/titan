@@ -1,7 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-interface MemoryState {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export interface MemoryState {
   pastInteractions: Array<{
     timestamp: string;
     type: string;
@@ -31,6 +36,8 @@ interface MemoryState {
       lastUpdate: string;
     };
   };
+  // Add index signature for flexible agent data access
+  [key: string]: any;
 }
 
 const MEMORY_FILE = path.join(__dirname, '../data/memory.json');

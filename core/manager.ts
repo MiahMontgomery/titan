@@ -1,5 +1,5 @@
 import { loadSecrets, saveSecrets } from './secrets';
-import { loadMemory, saveMemory } from './memory';
+import { loadMemory, saveMemory, type MemoryState } from './memory';
 import { logAction } from './logger';
 import { broadcastUpdate } from './websocket';
 
@@ -33,7 +33,9 @@ class AgentManager {
     };
 
     // Initialize agent-specific memory and secrets
-    await saveMemory({ [id]: agent.memory });
+    const currentMemory = await loadMemory();
+    currentMemory.agents[id] = { memory: agent.memory, lastUpdate: new Date().toISOString() };
+    await saveMemory(currentMemory);
     await saveSecrets(id, agent.secrets, type);
 
     this.agents.set(id, agent);
@@ -67,13 +69,17 @@ class AgentManager {
   // Load agent memory
   async loadAgentMemory(id: string): Promise<any> {
     const memory = await loadMemory();
-    return memory[id] || {};
+    return memory.agents[id]?.memory || {};
   }
 
   // Save agent memory
   async saveAgentMemory(id: string, data: any): Promise<void> {
     const memory = await loadMemory();
-    memory[id] = data;
+    if (!memory.agents[id]) {
+      memory.agents[id] = { memory: {}, lastUpdate: new Date().toISOString() };
+    }
+    memory.agents[id].memory = data;
+    memory.agents[id].lastUpdate = new Date().toISOString();
     await saveMemory(memory);
   }
 

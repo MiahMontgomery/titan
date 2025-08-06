@@ -1,40 +1,37 @@
-import WebSocket from 'ws';
-import { getStatus } from './status';
+import { WebSocketServer } from 'ws';
 
-const wss = new WebSocket.Server({ port: 8080 });
+let wss: WebSocketServer | null = null;
 
-// Handle new connections
-wss.on('connection', (ws) => {
-  console.log('New client connected');
-  
-  // Send initial status
-  getStatus().then(status => {
-    ws.send(JSON.stringify(status));
+export function setupWebSocket(server: any) {
+  wss = new WebSocketServer({ server, path: '/ws' });
+
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    
+    ws.on('message', (message) => {
+      console.log(`Received: ${message}`);
+      ws.send(`Echo: ${message}`);
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
   });
-  
-  ws.on('close', () => {
-    console.log('Client disconnected');
-  });
-});
 
-// Broadcast updates to all connected clients
-export async function broadcastUpdate(data?: any): Promise<void> {
-  const status = await getStatus();
-  const message = JSON.stringify(data || status);
-  
+  return wss;
+}
+
+export function broadcastUpdate(update: any) {
+  if (!wss) return;
+
+  const message = JSON.stringify(update);
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === 1) { // WebSocket.OPEN
       client.send(message);
     }
   });
 }
 
-// Broadcast specific data
-export function broadcastData(data: object): void {
-  const message = JSON.stringify(data);
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-} 
+export function getWebSocketServer() {
+  return wss;
+}

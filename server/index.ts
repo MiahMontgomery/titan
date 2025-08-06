@@ -2,8 +2,20 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+// Import the autonomous system
+import { runAutonomousLoop } from "../main";
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
 
 const app = express();
+
+// Security and logging middleware
+app.use(helmet({
+  contentSecurityPolicy: false // Allow dynamic content for development
+}));
+app.use(cors());
+app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -67,5 +79,11 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start the autonomous AI system
+    log(`starting autonomous AI system...`);
+    runAutonomousLoop().catch((error) => {
+      console.error('Error starting autonomous system:', error);
+    });
   });
 })();

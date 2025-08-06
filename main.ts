@@ -3,10 +3,6 @@ import { getNextTask, removeTask } from './data/queue';
 import { executeTask } from './core/brain';
 import { logAction } from './core/logger';
 import { updateStatus } from './core/status';
-import { setupWebSocketServer } from './core/websocket';
-
-// Initialize WebSocket server for real-time updates
-setupWebSocketServer();
 
 // Main execution loop
 async function runLoop() {
@@ -46,14 +42,17 @@ async function runLoop() {
           ...memory.pastInteractions,
           {
             timestamp: new Date().toISOString(),
-            task,
-            result,
-            success: true
+            type: task.type,
+            data: {
+              task,
+              result,
+              success: true
+            }
           }
         ]
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in main loop:', error);
     await logAction('error', {
       error: error.message,
@@ -65,5 +64,13 @@ async function runLoop() {
   setTimeout(runLoop, 60000); // Run every 60 seconds
 }
 
-// Start the loop
-runLoop().catch(console.error); 
+// Export the run function for external use
+export async function runAutonomousLoop() {
+  console.log('🤖 Starting Titan autonomous AI system...');
+  return runLoop();
+}
+
+// Start the loop when this module is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runLoop().catch(console.error);
+} 
